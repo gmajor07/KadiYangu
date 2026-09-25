@@ -29,6 +29,7 @@ model User {
   emailVerified DateTime?
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
+  designs       Design[]
 }
 
 // Shared, atomic throttling across Node workers; no Redis requirement.
@@ -50,6 +51,12 @@ enum TemplateOrientation {
   PORTRAIT
   LANDSCAPE
   SQUARE
+}
+
+enum DesignStatus {
+  DRAFT
+  COMPLETED
+  ARCHIVED
 }
 
 model EventCategory {
@@ -90,7 +97,28 @@ model Template {
   designData      Json
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
+  designs         Design[]
 
   @@index([categoryId, status, isActive])
   @@index([status, isActive, isFeatured, createdAt])
+}
+
+model Design {
+  id           String              @id @default(cuid())
+  userId       String
+  templateId   String?
+  name         String              @db.VarChar(160)
+  designData   Json
+  width        Int
+  height       Int
+  orientation  TemplateOrientation
+  thumbnailUrl String?
+  status       DesignStatus        @default(DRAFT)
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  template     Template?           @relation(fields: [templateId], references: [id], onDelete: SetNull)
+
+  @@index([userId, status, updatedAt])
+  @@index([templateId])
 }
