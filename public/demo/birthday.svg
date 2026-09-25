@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350" viewBox="0 0 1080 1350">
+ <rect width="1080" height="1350" fill="#e7d9c4"/>
+ <rect x="42" y="42" width="996" height="1266" rx="8" fill="none" stroke="#744638" stroke-width="2"/>
+ <rect x="58" y="58" width="964" height="1234" rx="8" fill="none" stroke="#744638" opacity=".45"/>
+ <g fill="none" stroke="#744638" stroke-width="3" opacity=".7"><path d="M80 280Q260 120 160 65M70 225Q160 230 185 130M1000 1070Q820 1230 920 1285M1010 1125Q920 1120 895 1220"/>
+ <ellipse cx="540.0" cy="391.5" rx="42" ry="60" transform="rotate(-25 540.0 391.5)"/><ellipse cx="575.0" cy="391.5" rx="42" ry="60" transform="rotate(25 575.0 391.5)"/></g>
+ <g text-anchor="middle" fill="#423d33"><text x="540.0" y="580.5" font-size="20" letter-spacing="6" font-family="Arial,sans-serif">YOU ARE WARMLY INVITED</text>
+ <text x="540.0" y="729.0" font-family="Georgia,serif" font-size="65" letter-spacing="2">A LITTLE MORE JOY</text>
+ <text x="540.0" y="810.0" font-family="Georgia,serif" font-style="italic" font-size="29">Celebrate with us</text>
+ <path d="M485.0 904.5h110" stroke="#744638"/>
+ <text x="540.0" y="1012.5" font-family="Arial,sans-serif" font-size="18" letter-spacing="4">DAR ES SALAAM · TANZANIA</text>
+ <text x="540.0" y="1107.0" font-family="Georgia,serif" font-size="25">Birthday celebration</text>
+ <text x="540.0" y="1242.0" font-family="Arial,sans-serif" font-size="13" letter-spacing="3" opacity=".65">KADIYANGU · DEMO DESIGN</text></g></svg>

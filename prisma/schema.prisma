@@ -1,0 +1,96 @@
+generator client {
+  provider   = "prisma-client-js"
+  engineType = "client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum AccountStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+model User {
+  id            String        @id @default(cuid())
+  name          String
+  email         String        @unique
+  phone         String?
+  passwordHash  String
+  role          Role          @default(USER)
+  status        AccountStatus @default(ACTIVE)
+  emailVerified DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+// Shared, atomic throttling across Node workers; no Redis requirement.
+model AuthRateLimit {
+  key       String   @id
+  count     Int
+  expiresAt DateTime
+
+  @@index([expiresAt])
+}
+
+enum TemplateStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum TemplateOrientation {
+  PORTRAIT
+  LANDSCAPE
+  SQUARE
+}
+
+model EventCategory {
+  id          String     @id @default(cuid())
+  name        String
+  slug        String     @unique
+  description String
+  imageUrl    String?
+  icon        String?
+  sortOrder   Int        @default(0)
+  isActive    Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  templates   Template[]
+
+  @@index([isActive, sortOrder])
+}
+
+model Template {
+  id              String              @id @default(cuid())
+  name            String
+  slug            String              @unique
+  description     String
+  thumbnailUrl    String
+  previewImageUrl String?
+  categoryId      String
+  category        EventCategory       @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  isPremium       Boolean             @default(false)
+  // Whole currency units in Phase 2 (e.g. 5000 = TZS 5,000), never floats.
+  price           Int?
+  currency        String              @default("TZS") @db.VarChar(3)
+  status          TemplateStatus      @default(DRAFT)
+  isFeatured      Boolean             @default(false)
+  isActive        Boolean             @default(true)
+  orientation     TemplateOrientation @default(PORTRAIT)
+  width           Int                 @default(1080)
+  height          Int                 @default(1350)
+  designData      Json
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@index([categoryId, status, isActive])
+  @@index([status, isActive, isFeatured, createdAt])
+}

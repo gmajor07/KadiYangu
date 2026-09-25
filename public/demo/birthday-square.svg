@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1080" viewBox="0 0 1080 1080">
+ <rect width="1080" height="1080" fill="#e4d2b9"/>
+ <rect x="42" y="42" width="996" height="996" rx="540" fill="none" stroke="#564937" stroke-width="2"/>
+ <rect x="58" y="58" width="964" height="964" rx="540" fill="none" stroke="#564937" opacity=".45"/>
+ <g fill="none" stroke="#564937" stroke-width="3" opacity=".7"><path d="M80 280Q260 120 160 65M70 225Q160 230 185 130M1000 800Q820 960 920 1015M1010 855Q920 850 895 950"/>
+ <ellipse cx="540.0" cy="313.2" rx="42" ry="60" transform="rotate(-25 540.0 313.2)"/><ellipse cx="575.0" cy="313.2" rx="42" ry="60" transform="rotate(25 575.0 313.2)"/></g>
+ <g text-anchor="middle" fill="#423d33"><text x="540.0" y="464.4" font-size="20" letter-spacing="6" font-family="Arial,sans-serif">YOU ARE WARMLY INVITED</text>
+ <text x="540.0" y="583.2" font-family="Georgia,serif" font-size="65" letter-spacing="2">MAKE A WISH</text>
+ <text x="540.0" y="648.0" font-family="Georgia,serif" font-style="italic" font-size="29">Let the good times begin</text>
+ <path d="M485.0 723.6h110" stroke="#564937"/>
+ <text x="540.0" y="810.0" font-family="Arial,sans-serif" font-size="18" letter-spacing="4">DAR ES SALAAM · TANZANIA</text>
+ <text x="540.0" y="885.5999999999999" font-family="Georgia,serif" font-size="25">Birthday celebration</text>
+ <text x="540.0" y="993.6" font-family="Arial,sans-serif" font-size="13" letter-spacing="3" opacity=".65">KADIYANGU · DEMO DESIGN</text></g></svg>
