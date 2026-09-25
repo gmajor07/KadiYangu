@@ -19,8 +19,7 @@ export default async function Dashboard() {
       <div className="mt-10 rounded-2xl border border-forest/15 bg-white p-8">
         <h2 className="text-xl font-semibold">Your account is ready.</h2>
         <p className="mt-3 max-w-xl leading-7 text-forest/70">
-          Explore invitation designs and find your celebration. The card editor
-          and event management will arrive in later phases.
+          Explore templates, create invitations and continue editing your saved designs.
         </p>
         <Link
           href="/templates"
@@ -28,6 +27,7 @@ export default async function Dashboard() {
         >
           Browse invitation templates
         </Link>
+        <Link href="/dashboard/designs" className="ml-3 mt-5 inline-block rounded-full border border-forest/20 px-5 py-3 text-sm font-semibold">My Designs</Link>
         <p className="mt-5 text-sm">Signed in as {user.email}</p>
         {user.role === "ADMIN" && (
           <Link

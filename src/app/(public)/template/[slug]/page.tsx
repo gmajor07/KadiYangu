@@ -5,6 +5,7 @@ import { CatalogImage } from "@/components/catalog/catalog-image";
 import { AdSlot } from "@/components/catalog/ad-slot";
 import { formatTemplatePrice } from "@/lib/catalog/money";
 import { catalogMetadata } from "@/lib/catalog/metadata";
+import { customizeTemplateAction } from "./actions";
 export const dynamic = "force-dynamic";
 type Props = { params: Promise<{ slug: string }> };
 export async function generateMetadata({ params }: Props) {
@@ -91,19 +92,15 @@ export default async function TemplateDetail({ params }: Props) {
             </div>
           </dl>
           <div className="mt-7 rounded-2xl border border-forest/15 bg-white p-6">
-            <button
-              disabled
-              aria-describedby="editor-note"
-              className="w-full rounded-full bg-forest px-5 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed"
-            >
-              Customize This Template
-            </button>
+            <form action={customizeTemplateAction}>
+              <input type="hidden" name="slug" value={template.slug} />
+              <button aria-describedby="editor-note" className="w-full rounded-full bg-forest px-5 py-3 text-sm font-semibold text-white">Customize This Template</button>
+            </form>
             <h2 id="editor-note" className="mt-4 text-sm font-semibold">
-              Card editor coming in the next phase
+              Start your invitation design
             </h2>
             <p className="mt-2 text-xs leading-6 text-forest/70">
-              You can explore designs now. Customization, downloads and
-              purchases are not available yet.
+              Open the editor to personalize this template. Saving requires an account.
             </p>
           </div>
           <Link

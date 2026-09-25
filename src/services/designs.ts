@@ -1,6 +1,6 @@
 import "server-only";
 import { getDb } from "@/lib/db";
-import { cloneDesignData, parseDesignData, type DesignData } from "@/lib/design-data";
+import { cloneDesignData, parseDesignData } from "@/lib/design-data";
 import { Prisma } from "@prisma/client";
 export async function createDesignFromTemplate(userId: string, templateId: string) {
   const template = await getDb().template.findFirst({ where: { id: templateId, status: "PUBLISHED", isActive: true }, select: { id:true,name:true,width:true,height:true,orientation:true,designData:true,thumbnailUrl:true,previewImageUrl:true } });

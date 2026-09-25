@@ -3,7 +3,7 @@ import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { buttonClass } from "@/components/ui/button";
-export function LoginForm() {
+export function LoginForm({ callbackUrl = "/dashboard" }: { callbackUrl?: string }) {
   const router = useRouter();
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
@@ -17,10 +17,10 @@ export function LoginForm() {
         email: data.get("email"),
         password: data.get("password"),
         redirect: false,
-        callbackUrl: "/dashboard",
+        callbackUrl,
       });
       if (result?.ok && !result.error) {
-        router.push("/dashboard");
+        router.push(callbackUrl);
         router.refresh();
         return;
       }

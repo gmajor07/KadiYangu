@@ -4,9 +4,9 @@ import { redirect, notFound } from "next/navigation";
 import { authOptions } from "./options";
 import { getDb } from "@/lib/db";
 import { canAccessAdmin, isActive } from "@/lib/permissions";
-export async function requireUser() {
+export async function requireUser(returnTo?: string) {
   const session = await getServerSession(authOptions);
-  if (!session?.user.id) redirect("/login");
+  if (!session?.user.id) redirect(returnTo ? `/login?callbackUrl=${encodeURIComponent(returnTo)}` : "/login");
   const user = await getDb().user.findUnique({
     where: { id: session.user.id },
     select: { id: true, name: true, email: true, role: true, status: true },
