@@ -1,6 +1,8 @@
 import "server-only";
 import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
+import GoogleProvider from "next-auth/providers/google";
+import FacebookProvider from "next-auth/providers/facebook";
 import { getDb } from "@/lib/db";
 import { loginSchema } from "@/lib/validation/auth";
 import { dummyHash, verifyPassword } from "./password";
@@ -10,6 +12,8 @@ export const authOptions: NextAuthOptions = {
   session: { strategy: "jwt", maxAge: 8 * 60 * 60 },
   pages: { signIn: "/login", error: "/login" },
   providers: [
+    ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET ? [GoogleProvider({ clientId: process.env.GOOGLE_CLIENT_ID, clientSecret: process.env.GOOGLE_CLIENT_SECRET })] : []),
+    ...(process.env.FACEBOOK_CLIENT_ID && process.env.FACEBOOK_CLIENT_SECRET ? [FacebookProvider({ clientId: process.env.FACEBOOK_CLIENT_ID, clientSecret: process.env.FACEBOOK_CLIENT_SECRET })] : []),
     CredentialsProvider({
       name: "Email and password",
       credentials: { email: { type: "email" }, password: { type: "password" } },
@@ -38,8 +42,20 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
+    async signIn({ user, account }) {
+      if (account?.provider === "google" || account?.provider === "facebook") {
+        if (!user.email) return false;
+        const existing = await getDb().user.findUnique({ where: { email: user.email.toLowerCase() } });
+        if (existing) return existing.status === "ACTIVE";
+        await getDb().user.create({ data: { name: user.name?.trim().slice(0, 100) || "KadiYangu user", email: user.email.toLowerCase(), passwordHash: dummyHash, emailVerified: new Date() } });
+      }
+      return true;
+    },
     async jwt({ token, user }) {
-      if (user) token.sub = user.id;
+      if (user) {
+        const record = user.email ? await getDb().user.findUnique({ where: { email: user.email.toLowerCase() }, select: { id: true } }) : null;
+        token.sub = record?.id ?? user.id;
+      }
       return token;
     },
     async session({ session, token }) {

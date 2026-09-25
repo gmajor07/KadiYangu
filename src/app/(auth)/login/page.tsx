@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { LoginForm } from "@/components/auth/login-form";
+import { SocialButtons } from "@/components/auth/social-buttons";
 export const metadata = { title: "Sign in" };
 export default async function Login({
   searchParams,
@@ -17,6 +18,7 @@ export default async function Login({
         </p>
       )}
       <LoginForm callbackUrl={callbackUrl} />
+      <SocialButtons callbackUrl={callbackUrl} />
       <p className="mt-6 text-sm">
         New here?{" "}
         <Link href="/register" className="underline">

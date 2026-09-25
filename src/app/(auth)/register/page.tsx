@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { RegisterForm } from "@/components/auth/register-form";
+import { SocialButtons } from "@/components/auth/social-buttons";
 export const metadata = { title: "Create account" };
 export default function Register() {
   return (
@@ -9,6 +10,7 @@ export default function Register() {
         Create your account for early access.
       </p>
       <RegisterForm />
+      <SocialButtons />
       <p className="mt-5 text-xs leading-6 text-forest/70">
         By registering, you agree to our{" "}
         <Link href="/terms" className="underline">
