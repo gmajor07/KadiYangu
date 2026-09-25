@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 const config: NextConfig = {
+  output: "standalone",
   poweredByHeader: false,
   // Browser tests use their own public origin and build artifacts.
   distDir: process.env.KADI_TEST_BUILD === "true" ? ".next-test" : ".next",
