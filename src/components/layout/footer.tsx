@@ -5,7 +5,7 @@ export function Footer() {
       <div className="mx-auto grid max-w-6xl gap-8 px-6 py-12 md:grid-cols-2">
         <div>
           <Link href="/" className="text-2xl font-bold tracking-tight">
-            kadi<span className="font-normal">yangu</span>.
+            KADI<span className="font-normal">YANGU</span>.
           </Link>
           <p className="mt-3 max-w-sm text-sm leading-7 text-forest/70">
             A little invitation. A meaningful connection.
