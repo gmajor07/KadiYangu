@@ -8,4 +8,6 @@ The Prisma migration `20260926092810_phase4_exports_commerce` adds `Order`, `Pay
 
 Routes added are `/dashboard/orders`, `/checkout/[orderId]`, `/admin/orders` and `/admin/payments`. Every route uses server-side user/admin guards. Standalone cPanel packaging remains unchanged and no Prisma CLI is needed at runtime.
 
+Export requests are recorded server-side through `recordExportAction`. Standard exports are logged with a watermark. High-quality requests require a `PREMIUM_EXPORT` entitlement; otherwise a server-created order is returned and the user is sent to the explicit coming-soon checkout page.
+
 Deferred: real payment providers, final entitlement purchase callbacks, server-side export audit recording, advanced export queues, subscriptions and all later event features.
