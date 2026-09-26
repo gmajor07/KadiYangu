@@ -18,7 +18,7 @@ export async function register() {
       )
         throw new Error(`${key} must use HTTPS`);
     }
-    if (
+    if (process.env.ALLOW_TEST_DATABASE !== "true" &&
       new URL(process.env.NEXTAUTH_URL!).origin !==
       new URL(process.env.NEXT_PUBLIC_APP_URL!).origin
     )

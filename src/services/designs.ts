@@ -5,7 +5,8 @@ import { Prisma } from "@prisma/client";
 export async function createDesignFromTemplate(userId: string, templateId: string) {
   const template = await getDb().template.findFirst({ where: { id: templateId, status: "PUBLISHED", isActive: true }, select: { id:true,name:true,width:true,height:true,orientation:true,designData:true,thumbnailUrl:true,previewImageUrl:true } });
   if (!template) return null;
-  const data = parseDesignData(template.designData);
+  let data;
+  try { data = parseDesignData(template.designData); } catch { data = { version: 1 as const, canvas: { width: template.width, height: template.height, backgroundColor: "#ffffff" }, elements: [{ id: "title-1", type: "text" as const, x: template.width / 2 - 300, y: template.height / 2 - 50, width: 600, height: 100, rotation: 0, text: template.name, style: { fontFamily: "serif", fontSize: 64, fontWeight: 600, color: "#203b32", align: "center" as const } }] }; }
   return getDb().design.create({ data: { userId, templateId: template.id, name: `${template.name} Copy`, width: template.width, height: template.height, orientation: template.orientation, thumbnailUrl: template.previewImageUrl || template.thumbnailUrl, designData: data as unknown as Prisma.InputJsonValue }, select: { id:true } });
 }
 export function getOwnedDesign(userId: string, id: string) { return getDb().design.findFirst({ where: { id, userId }, include: { template: { select: { id:true,name:true,slug:true } } } }); }

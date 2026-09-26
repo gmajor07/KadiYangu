@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports -- standalone post-build script is CommonJS. */
 /* Copy assets that Next intentionally leaves beside standalone/server.js. */
 const fs = require("node:fs");
 const path = require("node:path");

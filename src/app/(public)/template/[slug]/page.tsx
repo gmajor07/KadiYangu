@@ -6,6 +6,7 @@ import { AdSlot } from "@/components/catalog/ad-slot";
 import { formatTemplatePrice } from "@/lib/catalog/money";
 import { catalogMetadata } from "@/lib/catalog/metadata";
 import { customizeTemplateAction } from "./actions";
+import { AutoCustomize } from "@/components/catalog/auto-customize";
 export const dynamic = "force-dynamic";
 type Props = { params: Promise<{ slug: string }> };
 export async function generateMetadata({ params }: Props) {
@@ -19,9 +20,10 @@ export async function generateMetadata({ params }: Props) {
     template.previewImageUrl || template.thumbnailUrl,
   );
 }
-export default async function TemplateDetail({ params }: Props) {
+export default async function TemplateDetail({ params, searchParams }: Props & { searchParams?: Promise<{ customize?: string }> }) {
   const template = await getPublicTemplate((await params).slug);
   if (!template) notFound();
+  const shouldCustomize = (await searchParams)?.customize === "1";
   return (
     <section className="mx-auto max-w-6xl px-6 py-12">
       <nav
@@ -92,6 +94,7 @@ export default async function TemplateDetail({ params }: Props) {
             </div>
           </dl>
           <div className="mt-7 rounded-2xl border border-forest/15 bg-white p-6">
+            {shouldCustomize && <AutoCustomize slug={template.slug} />}
             <form action={customizeTemplateAction}>
               <input type="hidden" name="slug" value={template.slug} />
               <button aria-describedby="editor-note" className="w-full rounded-full bg-forest px-5 py-3 text-sm font-semibold text-white">Customize This Template</button>

@@ -166,16 +166,13 @@ test("detail preview is honest about the editor and unknown slugs are unavailabl
     page.getByRole("heading", { name: "Royal Gold Wedding", exact: true }),
   ).toBeVisible();
   await expect(page.getByText("TZS 15,000", { exact: true })).toBeVisible();
-  await expect(
-    page.getByRole("button", { name: "Customize This Template" }),
-  ).toBeDisabled();
-  await expect(
-    page.getByRole("heading", { name: "Card editor coming in the next phase" }),
-  ).toBeVisible();
   await expect(page.locator('meta[property="og:title"]')).toHaveAttribute(
     "content",
     "Royal Gold Wedding | KadiYangu",
   );
+  await expect(page.getByRole("button", { name: "Customize This Template" })).toBeEnabled();
+  await page.getByRole("button", { name: "Customize This Template" }).click();
+  await expect(page).toHaveURL(/\/login\?callbackUrl=/);
   await prepareScreenshot(page);
   await page.screenshot({
     path: "docs/screenshots/phase2/template-detail.png",

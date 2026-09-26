@@ -16,7 +16,7 @@ export default defineConfig({
     trace: "retain-on-failure",
   },
   webServer: {
-    command: `npm run start -- --port ${port}`,
+    command: `PORT=${port} node .next/standalone/server.js`,
     url: `http://localhost:${port}/api/health`,
     reuseExistingServer: false,
     timeout: 60000,
