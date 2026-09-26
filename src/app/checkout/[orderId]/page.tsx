@@ -1,0 +1,5 @@
+import { notFound } from "next/navigation";
+import { requireUser } from "@/lib/auth/guards";
+import { getDb } from "@/lib/db";
+export const dynamic = "force-dynamic";
+export default async function CheckoutPage({ params }: { params: Promise<{ orderId: string }> }) { const user = await requireUser(); const { orderId } = await params; const order = await getDb().order.findFirst({ where: { id: orderId, userId: user.id }, include: { design: true } }); if (!order) notFound(); return <section className="mx-auto max-w-xl px-6 py-16"><p className="eyebrow">Checkout</p><h1 className="mt-3 font-serif text-4xl">Unlock Premium Export</h1><div className="mt-8 rounded-2xl bg-white p-6"><p className="font-semibold">{order.design?.name || "Design export"}</p><p className="mt-3 text-2xl">{order.currency} {order.total.toLocaleString()}</p><p className="mt-4 text-sm text-forest/70">Payment methods are coming soon. No payment has been processed.</p><p className="mt-5 rounded-xl bg-[#f5f1e8] p-4 text-sm">Order {order.orderNumber} · {order.status}</p></div></section>; }

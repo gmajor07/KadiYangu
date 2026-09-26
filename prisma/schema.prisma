@@ -30,6 +30,9 @@ model User {
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
   designs       Design[]
+  orders        Order[]
+  entitlements  Entitlement[]
+  exports       ExportRecord[]
 }
 
 // Shared, atomic throttling across Node workers; no Redis requirement.
@@ -57,6 +60,36 @@ enum DesignStatus {
   DRAFT
   COMPLETED
   ARCHIVED
+}
+enum OrderType {
+  DESIGN_EXPORT
+  TEMPLATE_PURCHASE
+  EVENT_PACKAGE
+}
+enum OrderStatus {
+  PENDING
+  PROCESSING
+  PAID
+  FAILED
+  CANCELLED
+  REFUNDED
+}
+enum PaymentProvider {
+  MIX_BY_YAS
+  MPESA
+  AIRTEL_MONEY
+  CARD
+  MANUAL_TEST
+}
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  SUCCESS
+  FAILED
+  CANCELLED
+}
+enum EntitlementCapability {
+  PREMIUM_EXPORT
 }
 
 model EventCategory {
@@ -118,7 +151,76 @@ model Design {
   updatedAt    DateTime            @updatedAt
   user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   template     Template?           @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  orders       Order[]
+  exports      ExportRecord[]
 
   @@index([userId, status, updatedAt])
   @@index([templateId])
+}
+
+model Order {
+  id           String      @id @default(cuid())
+  userId       String
+  orderNumber  String      @unique
+  type         OrderType
+  status       OrderStatus @default(PENDING)
+  currency     String      @default("TZS") @db.VarChar(3)
+  subtotal     Int
+  total        Int
+  designId     String?
+  paidAt       DateTime?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  design       Design?     @relation(fields: [designId], references: [id], onDelete: SetNull)
+  payments     Payment[]
+  entitlements Entitlement[]
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+}
+
+model Payment {
+  id                String          @id @default(cuid())
+  orderId           String
+  provider          PaymentProvider
+  providerReference String?
+  amount            Int
+  currency          String          @default("TZS") @db.VarChar(3)
+  status            PaymentStatus   @default(PENDING)
+  metadata          Json?
+  paidAt            DateTime?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  order             Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  @@unique([provider, providerReference])
+  @@index([orderId, status])
+}
+
+model Entitlement {
+  id           String                @id @default(cuid())
+  userId       String
+  orderId      String
+  resourceType String
+  resourceId   String
+  capability   EntitlementCapability
+  expiresAt    DateTime?
+  createdAt    DateTime              @default(now())
+  user         User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  order        Order                 @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  @@unique([userId, resourceType, resourceId, capability])
+  @@index([userId, capability])
+}
+
+model ExportRecord {
+  id          String   @id @default(cuid())
+  userId      String
+  designId    String
+  format      String   @db.VarChar(4)
+  quality     String   @db.VarChar(20)
+  watermarked Boolean
+  createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  design      Design   @relation(fields: [designId], references: [id], onDelete: Cascade)
+  @@index([userId, createdAt])
+  @@index([designId, createdAt])
 }

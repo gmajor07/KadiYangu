@@ -1,0 +1,4 @@
+import { requireAdmin } from "@/lib/auth/guards";
+import { listAllOrders } from "@/services/commerce";
+export const dynamic = "force-dynamic";
+export default async function AdminOrders() { await requireAdmin(); const orders = await listAllOrders(); return <section className="mx-auto max-w-7xl px-6 py-12"><h1 className="font-serif text-4xl">Orders</h1><div className="mt-8 overflow-x-auto rounded-2xl bg-white"><table className="w-full text-left text-sm"><thead><tr className="border-b"><th className="p-4">Order</th><th className="p-4">User</th><th className="p-4">Total</th><th className="p-4">Status</th></tr></thead><tbody>{orders.map((o) => <tr key={o.id} className="border-b"><td className="p-4 font-mono">{o.orderNumber}</td><td className="p-4">{o.user.email}</td><td className="p-4">{o.currency} {o.total.toLocaleString()}</td><td className="p-4">{o.status}</td></tr>)}</tbody></table></div></section>; }
