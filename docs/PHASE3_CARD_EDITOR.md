@@ -18,7 +18,7 @@ Save is explicit and reports Saved, Saving, Unsaved changes or Save failed. Muta
 
 ## Responsive behavior and limitations
 
-The editor uses a three-panel desktop layout and a stacked mobile layout with a compact toolbar. Current MVP supports text and basic shapes, selection, move, delete, preview, duplicate, archive and save. Image upload, Transformer resize/rotate, advanced layers/history, thumbnails and blank designs are deferred where they need additional storage and UX work.
+The editor uses a three-panel desktop layout and a stacked mobile layout with a compact toolbar. The MVP supports text and basic shapes, image insertion, selection, move, delete, preview, layers, undo/redo, duplicate, archive and save. Advanced crop/masking, generated thumbnails and blank designs remain deferred.
 
 ## cPanel
 
