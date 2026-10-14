@@ -1,0 +1,3 @@
+# Phase 8A Event Website Foundation
+
+Added `EventWebsite`, `EventScheduleItem` and `EventGalleryItem` with migration `20260928170000_phase8_event_website_content`, applied to local PostgreSQL only. Website settings are owner-managed at `/dashboard/events/[eventId]/website`; Event ownership is checked server-side. Themes are limited to ELEGANT, CLASSIC, MODERN and MINIMAL. Section visibility/order and flexible `people` JSON are stored on EventWebsite. Gallery uploads use authenticated filesystem storage under `public/uploads/events/[eventId]`, JPEG/PNG/WebP, 5MB per file and 20 items per event. Production must preserve this writable directory on cPanel. Full public redesign, lightbox and schedule UI are deferred to Phase 8B.

@@ -1,0 +1,9 @@
+CREATE TABLE "EventWebsite" ("id" TEXT NOT NULL,"eventId" TEXT NOT NULL,"theme" TEXT NOT NULL DEFAULT 'ELEGANT',"sectionOrder" JSONB,"visibleSections" JSONB,"people" JSONB,"introductionTitle" TEXT,"introductionContent" TEXT,"storyTitle" TEXT,"storyContent" TEXT,"storyImage" TEXT,"giftTitle" TEXT,"giftDescription" TEXT,"createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,"updatedAt" TIMESTAMP(3) NOT NULL,CONSTRAINT "EventWebsite_pkey" PRIMARY KEY ("id"));
+CREATE UNIQUE INDEX "EventWebsite_eventId_key" ON "EventWebsite"("eventId");
+CREATE TABLE "EventScheduleItem" ("id" TEXT NOT NULL,"eventId" TEXT NOT NULL,"title" VARCHAR(160) NOT NULL,"timeText" VARCHAR(30),"details" VARCHAR(500),"sortOrder" INTEGER NOT NULL DEFAULT 0,"createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,"updatedAt" TIMESTAMP(3) NOT NULL,CONSTRAINT "EventScheduleItem_pkey" PRIMARY KEY ("id"));
+CREATE INDEX "EventScheduleItem_eventId_sortOrder_idx" ON "EventScheduleItem"("eventId","sortOrder");
+CREATE TABLE "EventGalleryItem" ("id" TEXT NOT NULL,"eventId" TEXT NOT NULL,"imageUrl" TEXT NOT NULL,"altText" TEXT,"sortOrder" INTEGER NOT NULL DEFAULT 0,"createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,"updatedAt" TIMESTAMP(3) NOT NULL,CONSTRAINT "EventGalleryItem_pkey" PRIMARY KEY ("id"));
+CREATE INDEX "EventGalleryItem_eventId_sortOrder_idx" ON "EventGalleryItem"("eventId","sortOrder");
+ALTER TABLE "EventWebsite" ADD CONSTRAINT "EventWebsite_eventId_fkey" FOREIGN KEY ("eventId") REFERENCES "Event"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "EventScheduleItem" ADD CONSTRAINT "EventScheduleItem_eventId_fkey" FOREIGN KEY ("eventId") REFERENCES "Event"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "EventGalleryItem" ADD CONSTRAINT "EventGalleryItem_eventId_fkey" FOREIGN KEY ("eventId") REFERENCES "Event"("id") ON DELETE CASCADE ON UPDATE CASCADE;

@@ -33,6 +33,7 @@ model User {
   orders        Order[]
   entitlements  Entitlement[]
   exports       ExportRecord[]
+  events        Event[]
 }
 
 // Shared, atomic throttling across Node workers; no Redis requirement.
@@ -156,6 +157,136 @@ model Design {
 
   @@index([userId, status, updatedAt])
   @@index([templateId])
+  events       Event[]
+}
+
+enum EventStatus {
+ DRAFT
+ PUBLISHED
+ ARCHIVED
+}
+enum RsvpStatus {
+ ATTENDING
+ NOT_ATTENDING
+ MAYBE
+}
+
+model Event {
+  id String @id @default(cuid())
+  userId String
+  designId String
+  title String @db.VarChar(160)
+  slug String @unique @db.VarChar(180)
+  eventType String @db.VarChar(60)
+  eventDate DateTime
+  startTime String? @db.VarChar(10)
+  endTime String? @db.VarChar(10)
+  venue String? @db.VarChar(160)
+  locationText String? @db.VarChar(240)
+  latitude Float?
+  longitude Float?
+  description String? @db.VarChar(2000)
+  status EventStatus @default(DRAFT)
+  publishedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+  design Design @relation(fields:[designId], references:[id], onDelete:Restrict)
+  responses Rsvp[]
+  website EventWebsite?
+  schedule EventScheduleItem[]
+  gallery EventGalleryItem[]
+  guests Guest[]
+  @@index([userId,status])
+}
+
+enum GuestInvitationStatus {
+ NOT_SENT
+ SENT
+ DELIVERED
+ FAILED
+}
+model Guest {
+  id String @id @default(cuid())
+  eventId String
+  name String @db.VarChar(160)
+  email String? @db.VarChar(254)
+  phone String? @db.VarChar(30)
+  category String? @db.VarChar(80)
+  notes String? @db.VarChar(1000)
+  invitationCode String @unique @db.VarChar(64)
+  plusOneAllowed Boolean @default(false)
+  maxGuests Int @default(1)
+  invitationStatus GuestInvitationStatus @default(NOT_SENT)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  event Event @relation(fields:[eventId], references:[id], onDelete:Cascade)
+  rsvps Rsvp[]
+  @@index([eventId, name])
+  @@index([eventId, invitationStatus])
+}
+
+model EventWebsite {
+  id String @id @default(cuid())
+  eventId String @unique
+  theme String @default("ELEGANT")
+  sectionOrder Json?
+  visibleSections Json?
+  people Json?
+  introductionTitle String?
+  introductionContent String?
+  storyTitle String?
+  storyContent String?
+  storyImage String?
+  giftTitle String?
+  giftDescription String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  event Event @relation(fields:[eventId], references:[id], onDelete:Cascade)
+}
+model EventScheduleItem {
+  id String @id @default(cuid())
+  eventId String
+  title String @db.VarChar(160)
+  timeText String? @db.VarChar(30)
+  details String? @db.VarChar(500)
+  sortOrder Int @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  event Event @relation(fields:[eventId], references:[id], onDelete:Cascade)
+  @@index([eventId, sortOrder])
+}
+model EventGalleryItem {
+  id String @id @default(cuid())
+  eventId String
+  imageUrl String
+  altText String?
+  sortOrder Int @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  event Event @relation(fields:[eventId], references:[id], onDelete:Cascade)
+  @@index([eventId, sortOrder])
+}
+
+model Rsvp {
+  id String @id @default(cuid())
+  eventId String
+  guestId String?
+  guestName String @db.VarChar(120)
+  phone String? @db.VarChar(30)
+  email String? @db.VarChar(254)
+  status RsvpStatus
+  guestCount Int @default(1)
+  message String? @db.VarChar(1000)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  event Event @relation(fields:[eventId], references:[id], onDelete:Cascade)
+  guest Guest? @relation(fields:[guestId], references:[id], onDelete:SetNull)
+  @@index([eventId,createdAt])
+  @@index([eventId,email])
+  @@index([eventId,phone])
+  @@index([guestId])
+  @@unique([eventId,guestId])
 }
 
 model Order {

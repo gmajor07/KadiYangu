@@ -8,7 +8,7 @@ const pool = new Pool({ connectionString: process.env.DATABASE_URL, max: 2 });
 const suffix = randomUUID().slice(0, 8); const password = randomBytes(20).toString("hex");
 const emailA = `editor-a-${suffix}@example.test`; const emailB = `editor-b-${suffix}@example.test`; let designId = "";
 async function hash(value: string) { const salt = randomBytes(16).toString("hex"); return `scrypt-v1$${salt}$${scryptSync(value, salt, 64, { N: 32768, r: 8, p: 3, maxmem: 67108864 }).toString("hex")}`; }
-async function login(page: import("@playwright/test").Page, email: string) { await page.getByLabel("Email address").fill(email); await page.getByLabel("Password", { exact: true }).fill(password); await page.getByRole("button", { name: "Sign in", exact: true }).click(); await expect(page).toHaveURL(/dashboard|editor/); }
+async function login(page: import("@playwright/test").Page, email: string) { await page.getByLabel("Email address").fill(email); await page.getByLabel("Password", { exact: true }).fill(password); await page.getByRole("button", { name: "Sign in", exact: true }).click(); await expect(page).toHaveURL(/dashboard|editor|customize/); }
 test.beforeAll(async () => { await mkdir("docs/screenshots/phase3", { recursive: true }); const passwordHash = await hash(password); await pool.query('INSERT INTO "User" (id,name,email,"passwordHash","updatedAt") VALUES ($1,$2,$3,$4,NOW()),($5,$6,$7,$4,NOW())', [randomUUID(), "Editor A", emailA, passwordHash, randomUUID(), "Editor B", emailB]); });
 test.afterAll(async () => { await pool.query('DELETE FROM "Design" WHERE id=$1', [designId]); await pool.query('DELETE FROM "User" WHERE email=ANY($1::text[])', [[emailA, emailB]]); await pool.end(); });
 

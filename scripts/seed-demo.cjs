@@ -2,6 +2,20 @@
 require("dotenv").config({ quiet: true });
 const { PrismaClient } = require("@prisma/client");
 const { PrismaPg } = require("@prisma/adapter-pg");
+const fs = require("node:fs");
+const htmlEntities = (value) => value.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">");
+function canonicalDesignData(art, width, height) {
+  const source = fs.readFileSync(`public/demo/${art}.svg`, "utf8");
+  const textElements = [...source.matchAll(/<text\b([^>]*)>(.*?)<\/text>/gs)].map((match, index) => {
+    const attrs = match[1]; const get = (key, fallback) => attrs.match(new RegExp(`${key}="([^"]+)"`))?.[1] || fallback;
+    const fontSize = Number(get("font-size", "24")); const palette = { "royal-gold": "#faf3df", graduation: "#faf3df" }; const inheritedFill = palette[art] || "#423d33"; const x = Number(get("x", String(width / 2))); const y = Number(get("y", String(height / 2)));
+    const editable = index === 1 || index === 2; const fieldKey = index === 1 ? "names" : index === 2 ? "message" : undefined;
+    return { id: `${art}-text-${index}`, type: "text", x: x - width * 0.4, y: y - fontSize, width: width * 0.8, height: fontSize * 2, rotation: 0, text: htmlEntities(match[2].replace(/<[^>]+>/g, "").trim()), editable, ...(fieldKey ? { fieldKey, fieldLabel: fieldKey === "names" ? "Names" : "Message", fieldType: fieldKey === "message" ? "textarea" : "text" } : {}), locked: !editable, style: { fontFamily: get("font-family", "Arial,sans-serif").split(",")[0], fontSize, fontWeight: get("font-weight", "400") === "bold" ? 700 : 400, letterSpacing: Number(get("letter-spacing", "0")), color: get("fill", inheritedFill), align: "center" } };
+  });
+  const elements = textElements.filter((element) => !/KADIYANGU\s*[·.]\s*DEMO DESIGN/i.test(element.text));
+  return { version: 1, canvas: { width, height, backgroundColor: "#ffffff", backgroundImage: `/demo/layers/${art}.svg` }, fields: elements.filter((e) => e.fieldKey).map((e) => ({ key: e.fieldKey, label: e.fieldLabel, type: e.fieldType, elementId: e.id, allowMultiline: e.fieldType === "textarea", fitMode: "shrink", minFontSize: 12, maxLines: e.fieldType === "textarea" ? 3 : 1 })), elements };
+}
+
 const url = new URL(process.env.DATABASE_URL || "postgresql://invalid");
 if (
   process.env.NODE_ENV === "production" ||
@@ -181,7 +195,7 @@ async function main() {
               : 1350;
         await tx.template.upsert({
           where: { slug },
-          update: {},
+          update: { designData: canonicalDesignData(art, width, height), width, height, orientation },
           create: {
             name,
             slug,
@@ -198,12 +212,7 @@ async function main() {
             orientation,
             width,
             height,
-            designData: {
-              version: 1,
-              canvas: { width, height },
-              elements: [],
-              demo: true,
-            },
+            designData: canonicalDesignData(art, width, height),
           },
         });
       }

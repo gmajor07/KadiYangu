@@ -103,7 +103,7 @@ export default async function TemplateDetail({ params, searchParams }: Props & {
               Start your invitation design
             </h2>
             <p className="mt-2 text-xs leading-6 text-forest/70">
-              Open the editor to personalize this template. Saving requires an account.
+              Open the Advanced Editor to personalize this template. Saving requires an account.
             </p>
           </div>
           <Link

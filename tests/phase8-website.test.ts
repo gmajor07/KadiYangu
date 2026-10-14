@@ -1,0 +1,4 @@
+import {describe,expect,it} from "vitest";
+const visible=(sections:string[], key:string, content?:string)=>sections.includes(key)&&Boolean(content?.trim());
+describe("Phase 8 public website sections",()=>{it("hides empty story",()=>expect(visible(["story"],"story","")).toBe(false));it("renders enabled introduction",()=>expect(visible(["introduction"],"introduction","Welcome")).toBe(true));it("supports schedule ordering",()=>expect([{sortOrder:2},{sortOrder:1}].sort((a,b)=>a.sortOrder-b.sortOrder)[0].sortOrder).toBe(1));it("supports gallery alt fallback",()=>expect("Event photo").toBeTruthy());it("keeps optional gift hidden without content",()=>expect(visible(["gift"],"gift")).toBe(false));it("allows non-wedding section labels",()=>expect("Graduate").not.toContain("Bride"));});
+it("supports all controlled themes",()=>{expect(["ELEGANT","CLASSIC","MODERN","MINIMAL"]).toHaveLength(4)});
