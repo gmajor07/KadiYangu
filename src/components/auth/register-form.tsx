@@ -1,6 +1,6 @@
 "use client";
 import { useActionState } from "react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { registerAction } from "@/app/(auth)/register/actions";
 import { buttonClass } from "@/components/ui/button";
@@ -10,6 +10,7 @@ export function RegisterForm() {
     ok: false,
     message: "",
   });
+  const [showPassword, setShowPassword] = useState(false);
   useEffect(() => {
     if (state.ok) router.replace("/login?registered=1");
   }, [state.ok, router]);
@@ -51,16 +52,12 @@ export function RegisterForm() {
       </div>
       <div>
         <label htmlFor="password">Password</label>
-        <input
-          id="password"
-          name="password"
-          type="password"
-          autoComplete="new-password"
-          required
-          minLength={12}
-          maxLength={128}
-          aria-describedby="password-help"
-        />
+        <div className="relative">
+          <input id="password" name="password" type={showPassword ? "text" : "password"} autoComplete="new-password" required minLength={12} maxLength={128} aria-describedby="password-help" className="pr-20" />
+          <button type="button" onClick={() => setShowPassword((value) => !value)} className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 text-xs font-semibold text-rose-gold underline" aria-pressed={showPassword} aria-label={showPassword ? "Hide password" : "Show password"}>
+            {showPassword ? "Hide" : "Show"}
+          </button>
+        </div>
         <p id="password-help" className="mt-2 text-xs text-forest/70">
           Use 12–128 characters. A unique passphrase works well.
         </p>

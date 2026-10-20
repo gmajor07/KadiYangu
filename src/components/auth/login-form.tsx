@@ -7,6 +7,7 @@ export function LoginForm({ callbackUrl = "/dashboard" }: { callbackUrl?: string
   const router = useRouter();
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setPending(true);
@@ -45,15 +46,12 @@ export function LoginForm({ callbackUrl = "/dashboard" }: { callbackUrl?: string
       </div>
       <div>
         <label htmlFor="password">Password</label>
-        <input
-          id="password"
-          name="password"
-          type="password"
-          autoComplete="current-password"
-          required
-          minLength={12}
-          maxLength={128}
-        />
+        <div className="relative">
+          <input id="password" name="password" type={showPassword ? "text" : "password"} autoComplete="current-password" required minLength={12} maxLength={128} className="pr-20" />
+          <button type="button" onClick={() => setShowPassword((value) => !value)} className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 text-xs font-semibold text-rose-gold underline" aria-pressed={showPassword} aria-label={showPassword ? "Hide password" : "Show password"}>
+            {showPassword ? "Hide" : "Show"}
+          </button>
+        </div>
       </div>
       <p role="alert" className="text-sm text-red-800">
         {error}
