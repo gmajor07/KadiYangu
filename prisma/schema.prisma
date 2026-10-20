@@ -34,6 +34,14 @@ model User {
   entitlements  Entitlement[]
   exports       ExportRecord[]
   events        Event[]
+  auditLogs     AuditLog[]
+  eventStaff    EventStaff[]
+  organizations OrganizationMember[]
+  ownedOrganizations Organization[]
+  organizationInvitationsSent OrganizationInvitation[] @relation("InvitationSender")
+  organizationBillingInitiated OrganizationBillingRecord[]
+  betaGrants BetaGrant[]
+  feedback Feedback[]
 }
 
 // Shared, atomic throttling across Node workers; no Redis requirement.
@@ -92,6 +100,11 @@ enum PaymentStatus {
 enum EntitlementCapability {
   PREMIUM_EXPORT
 }
+enum PricingTier {
+  STANDARD
+  PREMIUM
+  CUSTOM
+}
 
 model EventCategory {
   id          String     @id @default(cuid())
@@ -141,6 +154,7 @@ model Design {
   id           String              @id @default(cuid())
   userId       String
   templateId   String?
+  organizationId String?
   name         String              @db.VarChar(160)
   designData   Json
   width        Int
@@ -152,11 +166,13 @@ model Design {
   updatedAt    DateTime            @updatedAt
   user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   template     Template?           @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   orders       Order[]
   exports      ExportRecord[]
 
   @@index([userId, status, updatedAt])
   @@index([templateId])
+  @@index([organizationId])
   events       Event[]
 }
 
@@ -175,6 +191,7 @@ model Event {
   id String @id @default(cuid())
   userId String
   designId String
+  organizationId String?
   title String @db.VarChar(160)
   slug String @unique @db.VarChar(180)
   eventType String @db.VarChar(60)
@@ -191,13 +208,228 @@ model Event {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+  organization Organization? @relation(fields:[organizationId], references:[id], onDelete:Restrict)
   design Design @relation(fields:[designId], references:[id], onDelete:Restrict)
   responses Rsvp[]
   website EventWebsite?
   schedule EventScheduleItem[]
   gallery EventGalleryItem[]
   guests Guest[]
+  orders Order[]
+  guestPassPurchases GuestPassPurchase[]
+  guestPasses GuestPass[]
+  staff EventStaff[]
   @@index([userId,status])
+  @@index([organizationId,status])
+}
+
+enum OrganizationType {
+ AGENCY
+ RESELLER
+ PLANNER
+ BUSINESS
+}
+enum OrganizationStatus {
+ ACTIVE
+ SUSPENDED
+ ARCHIVED
+}
+enum OrganizationMemberRole {
+ OWNER
+ ADMIN
+ MANAGER
+ EDITOR
+ SCANNER
+ BILLING
+}
+enum OrganizationMemberStatus {
+ INVITED
+ ACTIVE
+ SUSPENDED
+ REMOVED
+}
+model Organization {
+ id String @id @default(cuid())
+ name String @db.VarChar(160)
+ slug String @unique @db.VarChar(180)
+ type OrganizationType @default(AGENCY)
+ status OrganizationStatus @default(ACTIVE)
+ ownerUserId String
+ owner User @relation(fields:[ownerUserId], references:[id], onDelete:Restrict)
+ members OrganizationMember[]
+ invitations OrganizationInvitation[]
+ designs Design[]
+ events Event[]
+ subscriptions OrganizationSubscription[]
+ billingRecords OrganizationBillingRecord[]
+ betaGrants BetaGrant[]
+ feedback Feedback[]
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ @@index([ownerUserId,status])
+}
+model OrganizationMember {
+ id String @id @default(cuid())
+ organizationId String
+ userId String
+ role OrganizationMemberRole @default(EDITOR)
+ status OrganizationMemberStatus @default(ACTIVE)
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ organization Organization @relation(fields:[organizationId], references:[id], onDelete:Cascade)
+ user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+ @@unique([organizationId,userId])
+ @@index([userId,status])
+}
+model OrganizationInvitation {
+ id String @id @default(cuid())
+ organizationId String
+ email String @db.VarChar(254)
+ role OrganizationMemberRole @default(EDITOR)
+ tokenHash String @unique @db.VarChar(64)
+ invitedByUserId String
+ expiresAt DateTime
+ acceptedAt DateTime?
+ createdAt DateTime @default(now())
+ organization Organization @relation(fields:[organizationId], references:[id], onDelete:Cascade)
+ invitedBy User @relation("InvitationSender", fields:[invitedByUserId], references:[id], onDelete:Restrict)
+ @@index([organizationId,email,expiresAt])
+}
+
+enum SubscriptionPlanCode {
+ STARTER
+ BUSINESS
+ ENTERPRISE
+}
+enum BillingInterval {
+ MONTHLY
+ ANNUAL
+}
+enum OrganizationSubscriptionStatus {
+ PENDING
+ ACTIVE
+ EXPIRED
+ CANCELLED
+}
+enum OrganizationBillingStatus {
+ PENDING
+ VERIFIED
+ FAILED
+ CANCELLED
+}
+model SubscriptionPlan {
+ id String @id @default(cuid())
+ code SubscriptionPlanCode
+ name String @db.VarChar(120)
+ description String? @db.VarChar(500)
+ monthlyAmount Int
+ annualAmount Int
+ currency String @default("TZS") @db.VarChar(3)
+ eventLimit Int?
+ designLimit Int?
+ memberLimit Int?
+ guestPassLimit Int?
+ isActive Boolean @default(true)
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ subscriptions OrganizationSubscription[]
+ billingRecords OrganizationBillingRecord[]
+ @@unique([code])
+ @@index([isActive,code])
+}
+model OrganizationSubscription {
+ id String @id @default(cuid())
+ organizationId String
+ planId String
+ status OrganizationSubscriptionStatus @default(PENDING)
+ interval BillingInterval
+ planNameSnapshot String @db.VarChar(120)
+ amountSnapshot Int
+ currencySnapshot String @default("TZS") @db.VarChar(3)
+ periodStart DateTime?
+ periodEnd DateTime?
+ renewsAt DateTime?
+ cancelAtPeriodEnd Boolean @default(false)
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ organization Organization @relation(fields:[organizationId], references:[id], onDelete:Restrict)
+ plan SubscriptionPlan @relation(fields:[planId], references:[id], onDelete:Restrict)
+ billingRecords OrganizationBillingRecord[]
+ @@index([organizationId,status,periodEnd])
+ @@index([planId,createdAt])
+}
+model OrganizationBillingRecord {
+ id String @id @default(cuid())
+ organizationId String
+ planId String
+ subscriptionId String?
+ initiatedByUserId String
+ idempotencyKey String @unique @db.VarChar(120)
+ status OrganizationBillingStatus @default(PENDING)
+ planNameSnapshot String @db.VarChar(120)
+ interval BillingInterval
+ amount Int
+ currency String @default("TZS") @db.VarChar(3)
+ providerReference String?
+ verifiedAt DateTime?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ organization Organization @relation(fields:[organizationId], references:[id], onDelete:Restrict)
+ plan SubscriptionPlan @relation(fields:[planId], references:[id], onDelete:Restrict)
+ subscription OrganizationSubscription? @relation(fields:[subscriptionId], references:[id], onDelete:SetNull)
+ initiatedBy User @relation(fields:[initiatedByUserId], references:[id], onDelete:Restrict)
+ @@unique([providerReference])
+ @@index([organizationId,status,createdAt])
+}
+
+
+model BetaConfiguration {
+ id String @id @default("default")
+ enabled Boolean @default(false)
+ personalExpiresAt DateTime?
+ organizationExpiresAt DateTime?
+ personalDesignLimit Int @default(3)
+ personalEventLimit Int @default(1)
+ personalGuestPassLimit Int @default(50)
+ organizationDesignLimit Int @default(25)
+ organizationEventLimit Int @default(10)
+ organizationGuestPassLimit Int @default(500)
+ updatedAt DateTime @updatedAt
+}
+model BetaGrant {
+ id String @id @default(cuid())
+ userId String?
+ organizationId String?
+ grantType String @default("BETA_GRANT") @db.VarChar(30)
+ expiresAt DateTime
+ designLimit Int @default(0)
+ eventLimit Int @default(0)
+ guestPassLimit Int @default(0)
+ designsUsed Int @default(0)
+ eventsUsed Int @default(0)
+ guestPassesUsed Int @default(0)
+ createdAt DateTime @default(now())
+ user User? @relation(fields:[userId], references:[id], onDelete:Restrict)
+ organization Organization? @relation(fields:[organizationId], references:[id], onDelete:Restrict)
+  guestPassPurchases GuestPassPurchase[]
+ @@unique([userId,grantType])
+ @@unique([organizationId,grantType])
+ @@index([expiresAt])
+}
+model Feedback {
+ id String @id @default(cuid())
+ userId String?
+ organizationId String?
+ rating Int
+ message String @db.VarChar(2000)
+ contactAllowed Boolean @default(false)
+ status String @default("OPEN") @db.VarChar(20)
+ createdAt DateTime @default(now())
+ reviewedAt DateTime?
+ user User? @relation(fields:[userId], references:[id], onDelete:SetNull)
+ organization Organization? @relation(fields:[organizationId], references:[id], onDelete:SetNull)
+ @@index([status,createdAt])
+ @@index([userId,createdAt])
 }
 
 enum GuestInvitationStatus {
@@ -299,15 +531,135 @@ model Order {
   subtotal     Int
   total        Int
   designId     String?
+  eventId      String?
   paidAt       DateTime?
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
   user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   design       Design?     @relation(fields: [designId], references: [id], onDelete: SetNull)
+  event        Event?      @relation(fields: [eventId], references: [id], onDelete: SetNull)
   payments     Payment[]
   entitlements Entitlement[]
+  items        OrderItem[]
+  guestPassPurchase GuestPassPurchase?
   @@index([userId, createdAt])
   @@index([status, createdAt])
+  @@index([eventId, createdAt])
+}
+
+model PricingRule {
+  id String @id @default(cuid())
+  key String @unique @db.VarChar(80)
+  tier PricingTier
+  amount Int?
+  minQuantity Int @default(1)
+  maxQuantity Int?
+  discountPercent Int?
+  currency String @default("TZS") @db.VarChar(3)
+  isActive Boolean @default(true)
+  effectiveFrom DateTime @default(now())
+  effectiveTo DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([tier,isActive,effectiveFrom])
+}
+model OrderItem {
+  id String @id @default(cuid())
+  orderId String
+  kind String @db.VarChar(60)
+  description String @db.VarChar(240)
+  quantity Int
+  unitAmount Int
+  totalAmount Int
+  currency String @default("TZS") @db.VarChar(3)
+  sourceTemplateId String?
+  sourceDesignId String?
+  metadata Json?
+  createdAt DateTime @default(now())
+  order Order @relation(fields:[orderId], references:[id], onDelete:Cascade)
+  @@index([orderId])
+}
+model GuestPassPurchase {
+  id String @id @default(cuid())
+  orderId String? @unique
+  betaGrantId String?
+  eventId String
+  quantityPurchased Int
+  quantityIssued Int @default(0)
+  quantityRemaining Int
+  unitAmount Int
+  totalAmount Int
+  currency String @default("TZS") @db.VarChar(3)
+  status String @default("PENDING") @db.VarChar(20)
+  idempotencyKey String @unique @db.VarChar(120)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  order Order? @relation(fields:[orderId], references:[id], onDelete:Cascade)
+  betaGrant BetaGrant? @relation(fields:[betaGrantId], references:[id], onDelete:Restrict)
+  event Event @relation(fields:[eventId], references:[id], onDelete:Restrict)
+  @@index([eventId,status,createdAt])
+  @@index([betaGrantId,createdAt])
+  passes GuestPass[]
+}
+
+enum GuestPassStatus {
+  ACTIVE
+  CHECKED_IN
+  REVOKED
+}
+model EventStaff {
+  id String @id @default(cuid())
+  eventId String
+  userId String
+  role String @default("SCANNER") @db.VarChar(20)
+  createdAt DateTime @default(now())
+  event Event @relation(fields:[eventId], references:[id], onDelete:Cascade)
+  user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+  @@unique([eventId,userId])
+}
+model GuestPass {
+  id String @id @default(cuid())
+  eventId String
+  purchaseId String
+  tokenHash String @unique @db.VarChar(64)
+  guestName String? @db.VarChar(160)
+  guestEmail String? @db.VarChar(254)
+  guestPhone String? @db.VarChar(30)
+  status GuestPassStatus @default(ACTIVE)
+  replacementRevision Int @default(0)
+  issuedAt DateTime @default(now())
+  checkedInAt DateTime?
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+  event Event @relation(fields:[eventId], references:[id], onDelete:Cascade)
+  purchase GuestPassPurchase @relation(fields:[purchaseId], references:[id], onDelete:Cascade)
+  checkIns CheckIn[]
+  @@index([eventId,status])
+  @@index([purchaseId])
+}
+model CheckIn {
+  id String @id @default(cuid())
+  passId String
+  eventId String
+  scannerUserId String
+  result String @db.VarChar(30)
+  createdAt DateTime @default(now())
+  pass GuestPass @relation(fields:[passId], references:[id], onDelete:Cascade)
+  @@index([eventId,createdAt])
+}
+
+model AuditLog {
+  id String @id @default(cuid())
+  actorUserId String?
+  action String @db.VarChar(80)
+  entityType String @db.VarChar(80)
+  entityId String? @db.VarChar(120)
+  beforeData Json?
+  afterData Json?
+  createdAt DateTime @default(now())
+  actor User? @relation(fields:[actorUserId], references:[id], onDelete:SetNull)
+  @@index([actorUserId,createdAt])
+  @@index([entityType,entityId,createdAt])
 }
 
 model Payment {
@@ -354,4 +706,15 @@ model ExportRecord {
   design      Design   @relation(fields: [designId], references: [id], onDelete: Cascade)
   @@index([userId, createdAt])
   @@index([designId, createdAt])
+}
+
+model HeroSlide {
+  id        String   @id @default(cuid())
+  imageUrl  String   @db.VarChar(500)
+  altText   String   @db.VarChar(200)
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([isActive, sortOrder])
 }

@@ -1,0 +1,2 @@
+"use server";import {requireUser} from "@/lib/auth/guards";import {createGuestPassOrder} from "@/services/guest-passes";import {redirect} from "next/navigation";
+export async function createPassOrder(formData:FormData){const u=await requireUser();const order=await createGuestPassOrder(u.id,String(formData.get("eventId")),formData.get("quantity")||"",String(formData.get("idempotencyKey")||""));if(!order)return;redirect(`/dashboard/orders/${order.id}`)}

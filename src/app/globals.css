@@ -1,12 +1,17 @@
 @import "tailwindcss";
 @theme inline {
-  --color-forest: #174f44;
-  --color-cream: #faf8f2;
+  --color-forest: #3b2f35;
+  --color-cream: #fff8f1;
+  --color-blush: #f7dce5;
+  --color-rose-gold: #b76e79;
+  --color-ivory: #fff8f1;
+  --color-champagne: #d9b76e;
+  --color-mauve: #80658b;
   --font-sans: Arial, Helvetica, sans-serif;
 }
 :root {
-  color: #203b34;
-  background: #faf8f2;
+  color: #332c32;
+  background: #fff8f1;
 }
 body {
   margin: 0;
@@ -31,11 +36,11 @@ input {
 }
 input {
   width: 100%;
-  border: 1px solid #b9c8c0;
+  border: 1px solid #d7c4c9;
   border-radius: 0.7rem;
   padding: 0.8rem 1rem;
   background: white;
-  color: #203b34;
+  color: #332c32;
 }
 label {
   display: block;
@@ -46,24 +51,24 @@ label {
 .prose p {
   margin-top: 1.2rem;
   line-height: 1.8;
-  color: #52665f;
+  color: #5f535c;
 }
 
 select,
 textarea {
   width: 100%;
   min-width: 0;
-  border: 1px solid #b9c8c0;
+  border: 1px solid #d7c4c9;
   border-radius: 0.7rem;
   padding: 0.8rem 1rem;
   background: white;
-  color: #203b34;
+  color: #332c32;
   font: inherit;
 }
 input[type="checkbox"] {
   width: 1.1rem;
   height: 1.1rem;
-  accent-color: #174f44;
+  accent-color: #b76e79;
 }
 input,
 select,
@@ -71,11 +76,11 @@ textarea {
   min-width: 0;
 }
 :focus-visible {
-  outline: 2px solid #a66b42;
+  outline: 2px solid #b76e79;
   outline-offset: 4px;
 }
 .eyebrow {
-  color: #805b38;
+  color: #80658b;
   font-size: 0.65rem;
   font-weight: 700;
   letter-spacing: 0.2em;

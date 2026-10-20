@@ -5,9 +5,9 @@ export const metadata = { title: "Sign in" };
 export default async function Login({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; callbackUrl?: string }>;
+  searchParams: Promise<{ error?: string; callbackUrl?: string; registered?: string }>;
 }) {
-  const { error, callbackUrl } = await searchParams;
+  const { error, callbackUrl, registered } = await searchParams;
   return (
     <>
       <h1 className="text-3xl font-semibold">Welcome back.</h1>
@@ -15,6 +15,11 @@ export default async function Login({
       {error && (
         <p role="alert" className="mt-4 text-sm text-red-800">
           Your account or sign-in is unavailable. Please try again.
+        </p>
+      )}
+      {registered && (
+        <p role="status" className="mt-4 text-sm text-forest">
+          Account created successfully. Sign in to continue.
         </p>
       )}
       <LoginForm callbackUrl={callbackUrl} />

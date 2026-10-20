@@ -1,4 +1,14 @@
 import type { NextConfig } from "next";
+const r2PublicUrl = process.env.R2_PUBLIC_BASE_URL;
+const r2ImagePattern = (() => {
+  if (!r2PublicUrl) return undefined;
+  try {
+    const url = new URL(r2PublicUrl);
+    return { protocol: url.protocol.replace(":", "") as "http" | "https", hostname: url.hostname, port: url.port, pathname: "/**" };
+  } catch {
+    return undefined;
+  }
+})();
 const config: NextConfig = {
   output: "standalone",
   poweredByHeader: false,
@@ -6,6 +16,7 @@ const config: NextConfig = {
   distDir: process.env.KADI_TEST_BUILD === "true" ? ".next-test" : ".next",
   outputFileTracingRoot: process.cwd(),
   serverExternalPackages: ["@prisma/client", "@prisma/adapter-pg", "pg"],
+  images: { remotePatterns: r2ImagePattern ? [r2ImagePattern] : [] },
   async headers() {
     return [
       {
@@ -21,6 +32,13 @@ const config: NextConfig = {
           ...(process.env.SITE_INDEXABLE !== "true"
             ? [{ key: "X-Robots-Tag", value: "noindex, nofollow" }]
             : []),
+        ],
+      },
+      {
+        source: "/dashboard/invitations/:path*",
+        headers: [
+          { key: "Cache-Control", value: "no-store, max-age=0" },
+          { key: "Referrer-Policy", value: "no-referrer" },
         ],
       },
     ];

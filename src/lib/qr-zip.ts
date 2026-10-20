@@ -1,0 +1,3 @@
+import QRCode from "qrcode";
+import JSZip from "jszip";
+export async function buildGuestPassZip(tokens:string[],eventName:string){const zip=new JSZip();const folder=zip.folder("guest-passes")!;for(let i=0;i<tokens.length;i+=5){await Promise.all(tokens.slice(i,i+5).map(async(t,j)=>{const data=await QRCode.toDataURL(t,{width:600,margin:2,errorCorrectionLevel:"M"});folder.file(`guest-${String(i+j+1).padStart(3,"0")}.png`,data.split(",")[1],{base64:true})}));await new Promise(r=>setTimeout(r,0))}folder.file("manifest.txt",`Event: ${eventName}\nPasses: ${tokens.length}\n`);return zip.generateAsync({type:"nodebuffer",compression:"DEFLATE"})}

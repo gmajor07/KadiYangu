@@ -18,10 +18,14 @@ const prismaTarget = path.join(standalone, "prisma");
 copy(path.join(root, "prisma", "migrations"), path.join(prismaTarget, "migrations"));
 copy(path.join(root, "prisma", "schema.prisma"), path.join(prismaTarget, "schema.prisma"));
 
+const migrationSource = path.join(root, "prisma", "migrations");
 const migrationDirectories = fs.readdirSync(path.join(prismaTarget, "migrations"), { withFileTypes: true })
   .filter((entry) => entry.isDirectory())
   .map((entry) => entry.name);
-if (migrationDirectories.length !== 8) {
-  throw new Error(`Expected 8 Prisma migration directories, found ${migrationDirectories.length}.`);
+const sourceMigrationDirectories = fs.readdirSync(migrationSource, { withFileTypes: true })
+  .filter((entry) => entry.isDirectory())
+  .map((entry) => entry.name);
+if (migrationDirectories.length !== sourceMigrationDirectories.length || sourceMigrationDirectories.some((name) => !migrationDirectories.includes(name))) {
+  throw new Error(`Standalone Prisma migrations are incomplete: source=${sourceMigrationDirectories.length}, destination=${migrationDirectories.length}.`);
 }
-console.log("Standalone assets prepared: public, .next/static, Prisma client runtime, migrations (8), and schema.prisma.");
+console.log(`Standalone assets prepared: public, .next/static, Prisma client runtime, migrations (${migrationDirectories.length}), and schema.prisma.`);

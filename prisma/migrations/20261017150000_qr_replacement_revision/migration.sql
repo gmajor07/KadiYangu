@@ -1,0 +1,1 @@
+ALTER TABLE "GuestPass" ADD COLUMN "replacementRevision" INTEGER NOT NULL DEFAULT 0;

@@ -5,6 +5,9 @@ import { TemplateGrid } from "@/components/catalog/template-card";
 import { CatalogImage } from "@/components/catalog/catalog-image";
 import { getActiveCategories, getFeaturedTemplates } from "@/services/catalog";
 import { catalogMetadata } from "@/lib/catalog/metadata";
+import { TemplateSlideshow } from "@/components/catalog/template-slideshow";
+import { HeroSlideshow } from "@/components/catalog/hero-slideshow";
+import { getActiveHeroSlides } from "@/services/hero-slides";
 export const dynamic = "force-dynamic";
 export const metadata = catalogMetadata(
   "Beautiful invitations for every celebration",
@@ -12,9 +15,10 @@ export const metadata = catalogMetadata(
   "/",
 );
 export default async function Home() {
-  const [categories, featured] = await Promise.all([
+  const [categories, featured, heroSlides] = await Promise.all([
     getActiveCategories(),
     getFeaturedTemplates(),
+    getActiveHeroSlides(),
   ]);
   const heroTemplate =
     featured.find(
@@ -67,16 +71,7 @@ export default async function Home() {
             className="absolute inset-5 rounded-t-[46%] rounded-b-2xl border border-[#bbaa86]/40"
           />
           <div className="relative w-full max-w-64 rotate-[-6deg] drop-shadow-2xl">
-            <CatalogImage
-              src={heroTemplate?.thumbnailUrl || null}
-              alt={
-                heroTemplate
-                  ? `${heroTemplate.name} featured invitation`
-                  : "Decorative invitation preview"
-              }
-              priority
-              className="max-h-[380px] w-full object-contain"
-            />
+            <HeroSlideshow slides={heroSlides} fallback={heroTemplate?.thumbnailUrl || null} fallbackAlt={heroTemplate ? `${heroTemplate.name} featured invitation` : "Decorative invitation preview"} />
           </div>
           <div className="absolute bottom-8 right-3 max-w-48 rotate-3 rounded-xl border border-forest/10 bg-[#fffdf7] px-5 py-4 shadow-lg">
             <p className="font-serif text-xl italic">An occasion. A feeling.</p>
@@ -103,6 +98,7 @@ export default async function Home() {
           <CategoryGrid categories={categories.slice(0, 8)} />
         </div>
       </section>
+      <section className="mx-auto max-w-6xl px-6 py-14"><TemplateSlideshow templates={featured} /></section>
       <section className="mx-auto max-w-6xl px-6 py-16">
         <div className="section-heading">
           <div>
@@ -133,7 +129,7 @@ export default async function Home() {
               From a lovely idea to “see you there.”
             </h2>
             <p className="mx-auto mt-4 max-w-xl text-sm leading-7 text-forest/70">
-              Choose your favourite design now. The next steps are on their way.
+              Choose a design, customize it in the editor, then save, export or publish your invitation.
             </p>
           </div>
           <ol className="mt-12 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
@@ -146,17 +142,17 @@ export default async function Home() {
               [
                 "Customize",
                 "Make the words, colours and details yours.",
-                "Coming next",
+                "Available now",
               ],
               [
                 "Download or publish",
                 "Prepare a card or digital invitation page.",
-                "Planned",
+                "Available now",
               ],
               [
                 "Share with guests",
                 "Bring your people into the moment.",
-                "Planned",
+                "Available now",
               ],
             ].map(([title, copy, state], i) => (
               <li key={title}>
@@ -187,7 +183,7 @@ export default async function Home() {
             sharing.
           </p>
           <p className="mt-4 text-sm font-semibold text-forest/65">
-            These features are planned for future phases.
+            Digital invitations, RSVP pages and guest QR passes are available for your event.
           </p>
         </div>
         <div className="rounded-3xl border border-forest/15 bg-white p-8">
@@ -210,7 +206,7 @@ export default async function Home() {
           </Link>
         </div>
       </section>
-      <section className="bg-forest px-6 py-16 text-center text-cream">
+      <section className="bg-rose-gold px-6 py-16 text-center text-white">
         <p className="text-xs uppercase tracking-[.2em] text-white/70">
           Your people. Your moment.
         </p>
@@ -219,7 +215,7 @@ export default async function Home() {
         </h2>
         <Link
           href="/templates"
-          className="mt-8 inline-flex rounded-full bg-cream px-7 py-3 text-sm font-semibold text-forest"
+          className="mt-8 inline-flex rounded-full bg-ivory px-7 py-3 text-sm font-semibold text-forest"
         >
           Create Invitation{" "}
           <span aria-hidden="true" className="ml-3">

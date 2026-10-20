@@ -1,12 +1,18 @@
 "use client";
 import { useActionState } from "react";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { registerAction } from "@/app/(auth)/register/actions";
 import { buttonClass } from "@/components/ui/button";
 export function RegisterForm() {
+  const router = useRouter();
   const [state, action, pending] = useActionState(registerAction, {
     ok: false,
     message: "",
   });
+  useEffect(() => {
+    if (state.ok) router.replace("/login?registered=1");
+  }, [state.ok, router]);
   return (
     <form action={action} className="mt-8 space-y-5">
       <div>

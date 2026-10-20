@@ -8,3 +8,7 @@ coverage/
 test-results/
 playwright-report/
 .next-test/
+public/uploads/
+*.dump
+*.backup
+*.tar.gz

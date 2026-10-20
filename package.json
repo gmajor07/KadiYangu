@@ -23,10 +23,12 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1153.0",
     "@prisma/adapter-pg": "6.19.3",
     "@prisma/client": "6.19.3",
     "@types/qrcode": "^1.5.6",
     "jspdf": "^3.0.4",
+    "jszip": "^3.10.2",
     "konva": "^10.7.0",
     "next": "16.3.5",
     "next-auth": "4.24.15",

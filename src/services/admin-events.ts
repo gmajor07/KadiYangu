@@ -1,0 +1,2 @@
+import "server-only";import {getDb} from "@/lib/db";
+export function listAdminEvents(page=1,q=""){const where=q?{OR:[{title:{contains:q,mode:"insensitive" as const}},{slug:{contains:q,mode:"insensitive" as const}},{user:{email:{contains:q,mode:"insensitive" as const}}}]}:{};return Promise.all([getDb().event.findMany({where,orderBy:{eventDate:"desc"},skip:(page-1)*25,take:25,select:{id:true,title:true,slug:true,status:true,eventDate:true,user:{select:{name:true,email:true}},_count:{select:{guests:true,responses:true}}}}),getDb().event.count({where})]);}

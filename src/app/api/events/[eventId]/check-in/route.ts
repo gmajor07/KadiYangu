@@ -1,0 +1,2 @@
+import { NextResponse } from "next/server"; import { requireUser } from "@/lib/auth/guards"; import { checkInGuestPass } from "@/services/guest-passes-qr";
+export async function POST(req:Request,{params}:{params:Promise<{eventId:string}>}){try{const u=await requireUser();const {eventId}=await params;const body=await req.json();const result=await checkInGuestPass(u.id,eventId,String(body.token||""));return NextResponse.json(result,{status:result.ok?200:403})}catch{return NextResponse.json({ok:false,reason:"UNAVAILABLE"},{status:503})}}

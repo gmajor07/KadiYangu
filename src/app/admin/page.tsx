@@ -1,42 +1,8 @@
 import Link from "next/link";
 import { requireAdmin } from "@/lib/auth/guards";
-export const metadata = {
-  title: "Administration",
-  robots: { index: false, follow: false },
-};
-export default async function Admin() {
-  await requireAdmin();
-  return (
-    <section className="mx-auto max-w-6xl px-6 py-12">
-      <p className="eyebrow">Administration</p>
-      <h1 className="mt-4 text-4xl font-semibold">Manage the collection.</h1>
-      <p className="mt-4 text-forest/70">
-        You have administrator access. Manage the designs and celebrations
-        people can discover.
-      </p>
-      <div className="mt-8 grid gap-5 sm:grid-cols-2">
-        {[
-          [
-            "Event categories",
-            "Create, reorder, and activate celebration categories.",
-            "/admin/categories",
-          ],
-          [
-            "Invitation templates",
-            "Manage previews, prices, publication status, and featured designs.",
-            "/admin/templates",
-          ],
-        ].map(([title, copy, href]) => (
-          <Link
-            key={href}
-            href={href}
-            className="rounded-2xl border border-forest/15 bg-white p-7 hover:border-forest/50"
-          >
-            <h2 className="text-xl font-semibold">{title} ↗</h2>
-            <p className="mt-3 text-sm leading-7 text-forest/70">{copy}</p>
-          </Link>
-        ))}
-      </div>
-    </section>
-  );
-}
+import { getAdminOverview } from "@/services/admin-overview";
+export const metadata = { title: "Administration", robots: { index: false, follow: false } };
+const money = new Intl.NumberFormat("en-TZ", { style: "currency", currency: "TZS", maximumFractionDigits: 0 });
+const cards = [["Customers","customers","/admin"],["Categories","categories","/admin/categories"],["Published templates","publishedTemplates","/admin/templates"],["Designs","designs","/dashboard/designs"],["Events","events","/dashboard/events"],["Guests","guests","/dashboard/events"],["RSVPs","rsvps","/dashboard/events"],["Orders","orders","/admin/orders"],["Paid orders","paidOrders","/admin/orders"],["Revenue","revenue","/admin/orders"],["Pending payments","pendingPayments","/admin/payments"],["Failed payments","failedPayments","/admin/payments"]] as const;
+export default async function Admin(){await requireAdmin();let overview:Awaited<ReturnType<typeof getAdminOverview>>|null=null;let error=false;try{overview=await getAdminOverview()}catch{error=true}const value=(key:keyof NonNullable<typeof overview>["metrics"])=>{if(!overview)return "—";const raw=overview.metrics[key];return key==="revenue"?money.format(raw as number):(raw as number).toLocaleString("en-TZ")};return <section className="min-h-screen bg-[#f7f5ef]"><div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8"><div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between"><div><p className="eyebrow">KADIYANGU ADMIN</p><h1 className="mt-3 font-serif text-4xl text-forest sm:text-5xl">System overview</h1><p className="mt-3 max-w-2xl text-sm text-forest/65">Live operational metrics from the KadiYangu database.</p></div><nav aria-label="Admin quick navigation" className="flex flex-wrap gap-2 text-sm"><Link className="rounded-full bg-forest px-4 py-2 font-semibold text-white" href="/admin/categories">Manage catalog</Link><Link className="rounded-full border border-forest/20 px-4 py-2" href="/admin/orders">View orders</Link></nav></div>{error&&<div role="alert" className="mt-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-900">Metrics are temporarily unavailable. Try again shortly.</div>}<div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">{cards.map(([label,key,href])=><Link href={href} key={key} className="rounded-2xl border border-forest/10 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-forest/30"><p className="text-xs font-semibold uppercase tracking-wide text-forest/55">{label}</p><p className="mt-2 text-2xl font-semibold text-forest">{value(key)}</p></Link>)}</div><div className="mt-8 grid gap-6 lg:grid-cols-2"><DataTable title="Recent orders" href="/admin/orders" empty="No orders yet." columns={[["Order",(row:any)=>row.orderNumber],["Customer",(row:any)=>row.user.email],["Total",(row:any)=>`${row.currency} ${row.total.toLocaleString("en-TZ")}`],["Status",(row:any)=>row.status]]} rows={overview?.recentOrders||[]}/><DataTable title="Recent payments" href="/admin/payments" empty="No payments yet." columns={[["Order",(row:any)=>row.order.orderNumber],["Provider",(row:any)=>row.provider],["Amount",(row:any)=>`${row.currency} ${row.amount.toLocaleString("en-TZ")}`],["Status",(row:any)=>row.status]]} rows={overview?.recentPayments||[]}/></div></div></section>}
+function DataTable({title,href,empty,columns,rows}:{title:string;href:string;empty:string;columns:[string,(row:any)=>string][];rows:any[]}){return <section className="overflow-hidden rounded-2xl border border-forest/10 bg-white shadow-sm"><div className="flex items-center justify-between border-b border-forest/10 px-5 py-4"><h2 className="font-serif text-2xl text-forest">{title}</h2><Link href={href} className="text-sm font-semibold underline">View all</Link></div>{rows.length?<div className="overflow-x-auto"><table className="w-full text-left text-sm"><thead><tr className="border-b border-forest/10 text-xs uppercase tracking-wide text-forest/55">{columns.map(([name])=><th key={name} className="whitespace-nowrap px-5 py-3">{name}</th>)}</tr></thead><tbody>{rows.map(row=><tr key={row.id} className="border-b border-forest/5 last:border-0">{columns.map(([name,render])=><td key={name} className="whitespace-nowrap px-5 py-3">{render(row)}</td>)}</tr>)}</tbody></table></div>:<p className="px-5 py-8 text-sm text-forest/60">{empty}</p>}</section>}

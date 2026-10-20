@@ -4,6 +4,7 @@ import { getDb } from "@/lib/db";
 import { hashPassword } from "@/lib/auth/password";
 import { registrationSchema } from "@/lib/validation/auth";
 import { allowAuthAttempt } from "@/lib/auth/rate-limit";
+import { claimPersonalBeta } from "@/services/beta";
 export async function registerUser(input: unknown) {
   const parsed = registrationSchema.safeParse(input);
   if (!parsed.success)
@@ -24,7 +25,7 @@ export async function registerUser(input: unknown) {
     }
     const { name, email, phone, password } = parsed.data;
     const passwordHash = await hashPassword(password);
-    await getDb().user.create({
+    const created = await getDb().user.create({
       data: {
         name,
         email,
@@ -34,6 +35,7 @@ export async function registerUser(input: unknown) {
         status: "ACTIVE",
       },
     });
+    await claimPersonalBeta(created.id);
   } catch (error) {
     if (
       !(
