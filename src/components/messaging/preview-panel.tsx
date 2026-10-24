@@ -1,0 +1,7 @@
+"use client";
+import Link from "next/link";
+export function PreviewPanel({preview,eventId,channel,audience,selected}:{preview:{rows:Array<{id?:string;name:string;maskedDestination:string;message:string|null;warnings:string[]}>;page:number;pages:number;total:number;excluded:Array<{reason:string}>}|null;eventId:string;channel:string;audience:string;selected:string[]}){
+ if(!preview)return <p className="mt-3 text-sm opacity-60">Choose a campaign and recipients to preview messages.</p>;
+ const qs=(page:number)=>`?preview=1&channel=${encodeURIComponent(channel)}&audience=${encodeURIComponent(audience)}&selected=${encodeURIComponent(selected.join(","))}&previewPage=${page}`;
+ return <section className="mt-4 rounded-xl border p-4"><h3 className="font-medium">Preview · {preview.total} recipients</h3>{preview.rows.map(r=><article key={r.id} className="mt-3 rounded border p-3"><div className="text-xs opacity-70">{r.name} · {r.maskedDestination}</div><p className="mt-1 whitespace-pre-wrap text-sm">{r.message||"Unable to personalize this message."}</p>{r.warnings.map(w=><p className="text-xs text-amber-700" key={w}>Warning: {w}</p>)}</article>)}{preview.excluded.length>0&&<p className="mt-2 text-xs text-amber-700">Excluded: {preview.excluded.length}</p>}<div className="mt-3 flex gap-3 text-sm">{preview.page>1&&<Link href={qs(preview.page-1)}>Previous</Link>}<span>Page {preview.page} of {preview.pages}</span>{preview.page<preview.pages&&<Link href={qs(preview.page+1)}>Next</Link>}</div></section>;
+}

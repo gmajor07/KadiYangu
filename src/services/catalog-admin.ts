@@ -111,9 +111,9 @@ export async function saveTemplate(
     const record = id
       ? await getDb().template.update({
           where: { id },
-          data: { ...data, designData },
+      data: { ...data, pricingTier: data.pricingTier ?? (data.isPremium ? "CUSTOM" : "FREE"), designData },
         })
-      : await getDb().template.create({ data: { ...data, designData } });
+      : await getDb().template.create({ data: { ...data, pricingTier: data.pricingTier ?? (data.isPremium ? "CUSTOM" : "FREE"), designData } });
     return { ok: true, id: record.id };
   } catch (error) {
     return failure(error);

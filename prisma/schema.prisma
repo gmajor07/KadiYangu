@@ -42,6 +42,7 @@ model User {
   organizationBillingInitiated OrganizationBillingRecord[]
   betaGrants BetaGrant[]
   feedback Feedback[]
+  contributionPaymentsRecorded ContributionPayment[]
 }
 
 // Shared, atomic throttling across Node workers; no Redis requirement.
@@ -101,6 +102,7 @@ enum EntitlementCapability {
   PREMIUM_EXPORT
 }
 enum PricingTier {
+  FREE
   STANDARD
   PREMIUM
   CUSTOM
@@ -132,6 +134,8 @@ model Template {
   categoryId      String
   category        EventCategory       @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   isPremium       Boolean             @default(false)
+  /// Nullable during migration so existing records can be reviewed safely.
+  pricingTier     PricingTier?
   // Whole currency units in Phase 2 (e.g. 5000 = TZS 5,000), never floats.
   price           Int?
   currency        String              @default("TZS") @db.VarChar(3)
@@ -186,6 +190,48 @@ enum RsvpStatus {
  NOT_ATTENDING
  MAYBE
 }
+enum ContributionPledgeStatus {
+  OPEN
+  PARTIALLY_PAID
+  PAID
+  CANCELLED
+}
+enum ContributionPaymentMethod {
+  CASH
+  MPESA
+  MIXX_BY_YAS
+  AIRTEL_MONEY
+  BANK_TRANSFER
+  OTHER
+}
+enum ContributionVerificationStatus {
+  PENDING
+  CONFIRMED
+  REJECTED
+  REVERSED
+}
+enum MessageChannel {
+  SMS
+  WHATSAPP
+  EMAIL
+}
+enum MessageCampaignStatus {
+  DRAFT
+  READY
+  CANCELLED
+}
+enum MessageDeliveryStatus {
+  NOT_SENT
+  QUEUED
+  SENT
+  DELIVERED
+  FAILED
+}
+enum MessageConsentStatus {
+  UNKNOWN
+  OPTED_IN
+  OPTED_OUT
+}
 
 model Event {
   id String @id @default(cuid())
@@ -219,6 +265,11 @@ model Event {
   guestPassPurchases GuestPassPurchase[]
   guestPasses GuestPass[]
   staff EventStaff[]
+  contributors EventContributor[]
+  messageTemplates MessageTemplate[]
+  messageCampaigns MessageCampaign[]
+  messageConsents MessageConsent[]
+  messageLogs MessageLog[]
   @@index([userId,status])
   @@index([organizationId,status])
 }
@@ -454,8 +505,140 @@ model Guest {
   updatedAt DateTime @updatedAt
   event Event @relation(fields:[eventId], references:[id], onDelete:Cascade)
   rsvps Rsvp[]
+  contributors EventContributor[]
+  messageRecipients MessageRecipient[]
+  messageConsents MessageConsent[]
   @@index([eventId, name])
   @@index([eventId, invitationStatus])
+}
+
+model EventContributor {
+  id String @id @default(cuid())
+  eventId String
+  guestId String?
+  fullName String @db.VarChar(160)
+  phone String? @db.VarChar(30)
+  email String? @db.VarChar(254)
+  notes String? @db.VarChar(1000)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  event Event @relation(fields:[eventId], references:[id], onDelete:Cascade)
+  guest Guest? @relation(fields:[guestId], references:[id], onDelete:SetNull)
+  pledges ContributionPledge[]
+  payments ContributionPayment[]
+  messageRecipients MessageRecipient[]
+  messageConsents MessageConsent[]
+  @@unique([eventId, guestId])
+  @@index([eventId, fullName])
+}
+
+model ContributionPledge {
+  id String @id @default(cuid())
+  contributorId String
+  amount Int
+  dueDate DateTime?
+  notes String? @db.VarChar(1000)
+  status ContributionPledgeStatus @default(OPEN)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  contributor EventContributor @relation(fields:[contributorId], references:[id], onDelete:Cascade)
+  payments ContributionPayment[]
+  @@index([contributorId, status])
+}
+
+model ContributionPayment {
+  id String @id @default(cuid())
+  contributorId String
+  pledgeId String?
+  amount Int
+  method ContributionPaymentMethod
+  paymentDate DateTime @default(now())
+  referenceNumber String? @db.VarChar(120)
+  verificationStatus ContributionVerificationStatus @default(PENDING)
+  recordedByUserId String
+  notes String? @db.VarChar(1000)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  contributor EventContributor @relation(fields:[contributorId], references:[id], onDelete:Cascade)
+  pledge ContributionPledge? @relation(fields:[pledgeId], references:[id], onDelete:SetNull)
+  recordedBy User @relation(fields:[recordedByUserId], references:[id], onDelete:Restrict)
+  @@index([contributorId, verificationStatus])
+  @@index([pledgeId])
+}
+
+model MessageTemplate {
+  id String @id @default(cuid())
+  eventId String
+  name String @db.VarChar(120)
+  channel MessageChannel
+  body String @db.VarChar(5000)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  event Event @relation(fields:[eventId], references:[id], onDelete:Restrict)
+  campaigns MessageCampaign[]
+  @@index([eventId, channel])
+}
+model MessageCampaign {
+  id String @id @default(cuid())
+  eventId String
+  templateId String?
+  name String @db.VarChar(160)
+  channel MessageChannel
+  status MessageCampaignStatus @default(DRAFT)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  event Event @relation(fields:[eventId], references:[id], onDelete:Restrict)
+  template MessageTemplate? @relation(fields:[templateId], references:[id], onDelete:SetNull)
+  recipients MessageRecipient[]
+  logs MessageLog[]
+  @@index([eventId, status, createdAt])
+}
+model MessageRecipient {
+  id String @id @default(cuid())
+  campaignId String
+  guestId String?
+  contributorId String?
+  destination String @db.VarChar(254)
+  renderedBody String @db.VarChar(5000)
+  status MessageDeliveryStatus @default(NOT_SENT)
+  createdAt DateTime @default(now())
+  campaign MessageCampaign @relation(fields:[campaignId], references:[id], onDelete:Restrict)
+  guest Guest? @relation(fields:[guestId], references:[id], onDelete:SetNull)
+  contributor EventContributor? @relation(fields:[contributorId], references:[id], onDelete:SetNull)
+  logs MessageLog[]
+  @@unique([campaignId, destination])
+  @@index([campaignId, status])
+}
+model MessageLog {
+  id String @id @default(cuid())
+  eventId String
+  campaignId String
+  recipientId String?
+  channel MessageChannel
+  status MessageDeliveryStatus
+  errorMessage String? @db.VarChar(500)
+  createdAt DateTime @default(now())
+  sentAt DateTime?
+  deliveredAt DateTime?
+  event Event @relation(fields:[eventId], references:[id], onDelete:Restrict)
+  campaign MessageCampaign @relation(fields:[campaignId], references:[id], onDelete:Restrict)
+  recipient MessageRecipient? @relation(fields:[recipientId], references:[id], onDelete:SetNull)
+  @@index([eventId, createdAt])
+  @@index([campaignId, status])
+}
+model MessageConsent {
+  id String @id @default(cuid())
+  eventId String
+  guestId String?
+  contributorId String?
+  channel MessageChannel
+  status MessageConsentStatus @default(UNKNOWN)
+  updatedAt DateTime @updatedAt
+  event Event @relation(fields:[eventId], references:[id], onDelete:Restrict)
+  guest Guest? @relation(fields:[guestId], references:[id], onDelete:SetNull)
+  contributor EventContributor? @relation(fields:[contributorId], references:[id], onDelete:SetNull)
+  @@unique([eventId, guestId, contributorId, channel])
+  @@index([eventId, channel, status])
 }
 
 model EventWebsite {

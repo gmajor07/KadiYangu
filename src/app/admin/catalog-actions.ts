@@ -40,6 +40,7 @@ export async function saveTemplateAction(
     previewImageUrl: text(form, "previewImageUrl"),
     categoryId: text(form, "categoryId"),
     isPremium: form.get("isPremium") === "on",
+    pricingTier: text(form, "pricingTier"),
     price: text(form, "price"),
     currency: text(form, "currency"),
     status: text(form, "status"),

@@ -200,13 +200,23 @@ export function CatalogForm({
             <legend className="px-2 text-sm font-semibold">
               Free or premium
             </legend>
-            {checkbox("isPremium", "Premium design")}
+            <div>
+              <label htmlFor="pricingTier">Pricing tier</label>
+              <select id="pricingTier" name="pricingTier" value={value("pricingTier", "FREE")} onChange={(event) => update("pricingTier", event.target.value)} required>
+                <option value="FREE">FREE — TZS 0</option>
+                <option value="STANDARD">STANDARD — Pricing settings</option>
+                <option value="PREMIUM">PREMIUM — Pricing settings</option>
+                <option value="CUSTOM">CUSTOM — explicit template price</option>
+              </select>
+              <p className="mt-2 text-xs text-forest/65">STANDARD and PREMIUM use /admin/pricing. CUSTOM uses the price below.</p>
+            </div>
+            <input type="hidden" name="isPremium" value={value("pricingTier", "FREE") === "PREMIUM" || value("pricingTier", "FREE") === "CUSTOM" ? "on" : ""} />
             {field("price", "Price in whole TZS", {
               type: "number",
               min: 1,
               max: 2147483647,
               required: false,
-              help: "Premium requires a positive whole number, e.g. 15000. For FREE, uncheck Premium and leave price empty.",
+              help: "Only CUSTOM requires an explicit positive price. Other tiers resolve centrally.",
             })}
             <input type="hidden" name="currency" value="TZS" />
             <p className="text-xs text-forest/65">

@@ -28,15 +28,15 @@ describe("R2 storage adapter", () => {
   it("uploads valid images and returns a stable public URL", async () => {
     enableR2();
     const result = await putImage("hero", png);
-    expect(result.url).toMatch(/^https:\/\/media\.example\.test\/hero\/.+\.png$/);
+    expect(result.url).toMatch(/^https:\/\/media\.example\.test\/uploads\/hero\/.+\.png$/);
     expect(send).toHaveBeenCalledTimes(1);
     expect((send.mock.calls[0][0] as { input: { Bucket: string; ContentType: string } }).input).toMatchObject({ Bucket: "kadiyangu-media", ContentType: "image/png" });
   });
 
   it("checks and deletes only safe object keys", async () => {
     enableR2();
-    expect(await headObject("hero/example.png")).toBe(true);
-    await deleteObject("hero/example.png");
+    expect(await headObject("uploads/hero/example.png")).toBe(true);
+    await deleteObject("uploads/hero/example.png");
     expect(send).toHaveBeenCalledTimes(2);
     expect(await headObject("../secret.png")).toBe(false);
     await expect(deleteObject("../secret.png")).rejects.toThrow("Unsafe object key");

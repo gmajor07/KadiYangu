@@ -52,6 +52,7 @@ export const templateSchema = z
     previewImageUrl: optionalImage,
     categoryId: z.string().min(1).max(100),
     isPremium: z.boolean(),
+    pricingTier: z.enum(["FREE", "STANDARD", "PREMIUM", "CUSTOM"]).optional(),
     price: z
       .union([z.literal(""), z.null(), integer(1, 2147483647)])
       .transform((value) => (value === "" ? null : value)),

@@ -12,3 +12,4 @@ public/uploads/
 *.dump
 *.backup
 *.tar.gz
+reports/migration-audit/

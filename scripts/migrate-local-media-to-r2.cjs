@@ -1,42 +1,17 @@
-/*
- * Read-only by default. Uploads only when --execute is explicitly supplied.
- * This script never edits database URLs and never deletes local files.
- */
+/* Safe local media migration. Dry-run is the default. */
 const fs = require("node:fs");
 const path = require("node:path");
-const { S3Client, PutObjectCommand, HeadObjectCommand } = require("@aws-sdk/client-s3");
-
-const root = path.resolve(process.cwd(), "public/uploads");
-const execute = process.argv.includes("--execute");
-const verify = process.argv.includes("--verify") || execute;
+const crypto = require("node:crypto");
+const { S3Client, PutObjectCommand, HeadObjectCommand, GetObjectCommand } = require("@aws-sdk/client-s3");
 const required = ["R2_ENDPOINT", "R2_BUCKET", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY", "R2_PUBLIC_BASE_URL"];
-if (execute || verify) {
-  for (const key of required) if (!process.env[key]) throw new Error(`${key} is required`);
-}
-const base = (process.env.R2_PUBLIC_BASE_URL || "").replace(/\/$/, "");
-const client = execute || verify ? new S3Client({ region: "auto", endpoint: process.env.R2_ENDPOINT, credentials: { accessKeyId: process.env.R2_ACCESS_KEY_ID, secretAccessKey: process.env.R2_SECRET_ACCESS_KEY } }) : null;
-const files = [];
-function walk(dir) {
-  if (!fs.existsSync(dir)) return;
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-    const absolute = path.join(dir, entry.name);
-    if (entry.isDirectory()) walk(absolute);
-    else if (entry.isFile()) files.push(absolute);
-  }
-}
-walk(root);
-const contentType = (file) => ({ ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".webp": "image/webp" })[path.extname(file).toLowerCase()];
-(async () => {
-  const results = [];
-  for (const file of files) {
-    const key = path.relative(root, file).split(path.sep).join("/");
-    const type = contentType(file);
-    if (!type) { results.push({ key, status: "skipped", reason: "unsupported extension" }); continue; }
-    const result = { key, localBytes: fs.statSync(file).size, publicUrl: base ? `${base}/uploads/${key}` : null };
-    if (execute) await client.send(new PutObjectCommand({ Bucket: process.env.R2_BUCKET, Key: `uploads/${key}`, Body: fs.createReadStream(file), ContentType: type, CacheControl: "public, max-age=31536000, immutable" }));
-    if (verify) { await client.send(new HeadObjectCommand({ Bucket: process.env.R2_BUCKET, Key: `uploads/${key}` })); result.status = execute ? "uploaded-and-verified" : "verified"; }
-    else result.status = "dry-run";
-    results.push(result);
-  }
-  console.log(JSON.stringify({ mode: execute ? "execute" : "dry-run", count: results.length, databaseUrlsChanged: false, localFilesDeleted: false, files: results }, null, 2));
-})().catch((error) => { console.error(`Media migration failed: ${error.message}`); process.exitCode = 1; });
+const root = path.resolve(process.cwd(), "public/uploads");
+const mimeFor = (file) => ({ ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".webp": "image/webp" })[path.extname(file).toLowerCase()];
+const digest = (bytes) => crypto.createHash("sha256").update(bytes).digest("hex");
+function credentialsFromEnv() { for (const key of required) if (!process.env[key]) throw new Error(`${key} is required`); return { bucket: process.env.R2_BUCKET, base: process.env.R2_PUBLIC_BASE_URL.replace(/\/$/, ""), client: new S3Client({ region: "auto", endpoint: process.env.R2_ENDPOINT, credentials: { accessKeyId: process.env.R2_ACCESS_KEY_ID, secretAccessKey: process.env.R2_SECRET_ACCESS_KEY } }) }; }
+function filesUnder(dir) { if (!fs.existsSync(dir)) return []; return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => { const absolute = path.join(dir, entry.name); return entry.isDirectory() ? filesUnder(absolute) : entry.isFile() ? [absolute] : []; }); }
+async function bodyBytes(body) { if (!body) throw new Error("R2 object has no body"); if (typeof body.transformTo === "function") return Buffer.from(await body.transformTo("byteArray")); const chunks = []; for await (const chunk of body) chunks.push(Buffer.from(chunk)); return Buffer.concat(chunks); }
+async function existingIdentity(client, bucket, key) { try { await client.send(new HeadObjectCommand({ Bucket: bucket, Key: key })); } catch (error) { if (["NotFound", "NoSuchKey", "NotFoundException"].includes(error.name) || error.$metadata?.httpStatusCode === 404) return { exists: false }; throw error; } const object = await client.send(new GetObjectCommand({ Bucket: bucket, Key: key })); return { exists: true, sha256: digest(await bodyBytes(object.Body)) }; }
+async function migrateFile(config, file, execute) { const relative = path.relative(root, file).split(path.sep).join("/"); const type = mimeFor(file); if (!type) return { key: relative, status: "skipped", reason: "unsupported extension" }; const bytes = fs.readFileSync(file); const key = `uploads/${relative}`; const result = { key, localBytes: bytes.length, localSha256: digest(bytes), publicUrl: config.base ? `${config.base}/${key}` : null }; if (!execute) return { ...result, status: "dry_run" }; const current = await existingIdentity(config.client, config.bucket, key); if (current.exists) { if (current.sha256 === result.localSha256) return { ...result, status: "already_verified" }; const error = new Error(`R2 collision for ${key}: existing object differs from local file`); error.code = "R2_OBJECT_COLLISION"; throw error; } try { await config.client.send(new PutObjectCommand({ Bucket: config.bucket, Key: key, Body: bytes, ContentType: type, CacheControl: "public, max-age=31536000, immutable", IfNoneMatch: "*", Metadata: { sha256: result.localSha256 } })); } catch (error) { if (error.$metadata?.httpStatusCode === 412 || error.name === "PreconditionFailed") { const raced = await existingIdentity(config.client, config.bucket, key); if (raced.exists && raced.sha256 === result.localSha256) return { ...result, status: "already_verified" }; const collision = new Error(`R2 collision race for ${key}`); collision.code = "R2_OBJECT_COLLISION"; throw collision; } throw error; } const uploaded = await existingIdentity(config.client, config.bucket, key); if (!uploaded.exists || uploaded.sha256 !== result.localSha256) throw new Error(`R2 verification failed for ${key}`); return { ...result, status: "uploaded_and_verified" }; }
+async function run({ execute = false } = {}) { const config = execute ? credentialsFromEnv() : { base: process.env.R2_PUBLIC_BASE_URL?.replace(/\/$/, "") || "", bucket: null, client: null }; const results = []; for (const file of filesUnder(root)) results.push(await migrateFile(config, file, execute)); const summary = { mode: execute ? "execute" : "dry_run", count: results.length, uploaded: results.filter(x => x.status === "uploaded_and_verified").length, alreadyVerified: results.filter(x => x.status === "already_verified").length, databaseUrlsChanged: false, localFilesDeleted: false, files: results }; console.log(JSON.stringify(summary, null, 2)); return summary; }
+if (require.main === module) run({ execute: process.argv.includes("--execute") }).catch((error) => { console.error(`Media migration failed: ${error.message}`); process.exitCode = 1; });
+module.exports = { bodyBytes, digest, existingIdentity, migrateFile, run };
