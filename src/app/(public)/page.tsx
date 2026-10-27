@@ -2,10 +2,10 @@ import Link from "next/link";
 import { ButtonLink } from "@/components/ui/button";
 import { CategoryGrid } from "@/components/catalog/category-grid";
 import { TemplateGrid } from "@/components/catalog/template-card";
-import { CatalogImage } from "@/components/catalog/catalog-image";
 import { getActiveCategories, getFeaturedTemplates } from "@/services/catalog";
 import { catalogMetadata } from "@/lib/catalog/metadata";
 import { TemplateSlideshow } from "@/components/catalog/template-slideshow";
+import { HomepageBackground } from "@/components/catalog/homepage-background";
 import { HeroSlideshow } from "@/components/catalog/hero-slideshow";
 import { getActiveHeroSlides } from "@/services/hero-slides";
 export const dynamic = "force-dynamic";
@@ -15,10 +15,11 @@ export const metadata = catalogMetadata(
   "/",
 );
 export default async function Home() {
-  const [categories, featured, heroSlides] = await Promise.all([
+  const [categories, featured, heroSlides, backgrounds] = await Promise.all([
     getActiveCategories(),
     getFeaturedTemplates(),
     getActiveHeroSlides(),
+    getActiveHeroSlides("BACKGROUND"),
   ]);
   const heroTemplate =
     featured.find(
@@ -28,7 +29,9 @@ export default async function Home() {
     featured[0];
   return (
     <>
-      <section className="mx-auto grid max-w-6xl items-center gap-12 px-6 py-14 md:grid-cols-[1.1fr_1fr] md:py-20">
+      <section className="relative isolate">
+        <HomepageBackground slides={backgrounds} />
+        <div className="relative z-10 mx-auto grid max-w-6xl items-center gap-12 px-6 py-14 md:grid-cols-[1.1fr_1fr] md:py-20">
         <div>
           <p className="eyebrow">Made for moments that matter</p>
           <h1 className="mt-5 text-5xl leading-[1.09] tracking-tight md:text-6xl lg:text-7xl">
@@ -79,6 +82,7 @@ export default async function Home() {
               A beautiful beginning
             </p>
           </div>
+        </div>
         </div>
       </section>
       <section className="border-y border-forest/10 bg-white/60">

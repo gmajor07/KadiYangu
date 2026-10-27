@@ -593,7 +593,28 @@ model MessageCampaign {
   logs MessageLog[]
   @@index([eventId, status, createdAt])
 }
+enum SmsJobState {
+  NONE
+  PENDING
+  PROCESSING
+  RETRY_WAIT
+  COMPLETE
+  FAILED
+  UNCERTAIN
+}
+
 model MessageRecipient {
+  smsJobState SmsJobState @default(NONE)
+  smsMode String? @db.VarChar(8)
+  smsIdempotencyKey String? @unique @db.VarChar(100)
+  smsAttempts Int @default(0)
+  smsNextAttemptAt DateTime?
+  smsLockedAt DateTime?
+  smsErrorKind String? @db.VarChar(24)
+  smsFailureReason String? @db.VarChar(500)
+  smsProviderRequestId String? @db.VarChar(100)
+  smsDeliveryCheckedAt DateTime?
+
   id String @id @default(cuid())
   campaignId String
   guestId String?
@@ -608,8 +629,10 @@ model MessageRecipient {
   logs MessageLog[]
   @@unique([campaignId, destination])
   @@index([campaignId, status])
+  @@index([smsJobState, smsNextAttemptAt])
 }
 model MessageLog {
+  providerRequestId String? @db.VarChar(100)
   id String @id @default(cuid())
   eventId String
   campaignId String
@@ -892,6 +915,7 @@ model ExportRecord {
 }
 
 model HeroSlide {
+  placement String @default("CARD") @db.VarChar(20)
   id        String   @id @default(cuid())
   imageUrl  String   @db.VarChar(500)
   altText   String   @db.VarChar(200)
@@ -900,4 +924,5 @@ model HeroSlide {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   @@index([isActive, sortOrder])
+  @@index([placement, isActive, sortOrder])
 }

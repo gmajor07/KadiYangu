@@ -29,6 +29,7 @@ export default function AdminLayout({
           <Link href="/admin/beta">Free Beta</Link>
           <Link href="/admin/feedback">Feedback</Link>
           <Link href="/admin/hero-slides">Hero slides</Link>
+          <Link href="/admin/homepage-backgrounds">Homepage backgrounds</Link>
           <Link href="/dashboard">Dashboard</Link>
         </div>
       </nav>
