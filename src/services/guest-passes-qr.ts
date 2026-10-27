@@ -1,4 +1,6 @@
 import "server-only";
+import { scannerEventAccess } from "@/services/scanner";
+import { isEntryPassToken } from "@/lib/scanner/contracts";
 import { createHash, randomBytes } from "node:crypto";
 import { getDb } from "@/lib/db";
 import { canManageEvent } from "@/services/events";
@@ -65,22 +67,24 @@ export async function issueBetaGuestPasses(userId: string, eventId: string, quan
 }
 
 export async function checkInGuestPass(userId: string, eventId: string, rawToken: string) {
-  if (!rawToken || rawToken.length > 100) return { ok: false as const, reason: "INVALID" };
+  if (!isEntryPassToken(rawToken)) return { ok: false as const, reason: "INVALID" };
   const db = getDb();
   return db.$transaction(async (tx) => {
-    const allowed = await tx.event.findFirst({ where: { id: eventId, OR: [{ userId }, { staff: { some: { userId } } }] }, select: { id: true } });
+    const allowed = await tx.event.findFirst({ where: { AND: [{ id: eventId }, scannerEventAccess(userId)] }, select: { id: true } });
     if (!allowed) return { ok: false as const, reason: "UNAUTHORIZED" };
     // Use the same advisory lock key as replacement to make the race deterministic.
     const candidate = await tx.guestPass.findUnique({ where: { tokenHash: hash(rawToken) }, select: { id: true } });
     if (candidate) await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${candidate.id}, 0))`;
     const pass = await tx.guestPass.findUnique({ where: { tokenHash: hash(rawToken) } });
-    if (!pass || pass.eventId !== eventId) return { ok: false as const, reason: "INVALID" };
+    if (!pass) return { ok: false as const, reason: "INVALID" };
+    if (pass.eventId !== eventId) return { ok: false as const, reason: "INVALID", detail: "WRONG_EVENT" };
+    const entry = { guestName: pass.guestName, allowedEntries: 1 as const, checkedIn: 1 as const, remaining: 0 as const };
     if (pass.status === "REVOKED") return { ok: false as const, reason: "REVOKED" };
-    if (pass.status === "CHECKED_IN") return { ok: false as const, reason: "ALREADY_USED" };
+    if (pass.status === "CHECKED_IN") return { ok: false as const, reason: "ALREADY_USED", entry };
     const updated = await tx.guestPass.updateMany({ where: { id: pass.id, status: "ACTIVE" }, data: { status: "CHECKED_IN", checkedInAt: new Date() } });
     if (!updated.count) return { ok: false as const, reason: "ALREADY_USED" };
     await tx.checkIn.create({ data: { passId: pass.id, eventId, scannerUserId: userId, result: "APPROVED" } });
-    return { ok: true as const, passId: pass.id };
+    return { ok: true as const, passId: pass.id, entry };
   });
 }
 

@@ -28,11 +28,21 @@ const config: NextConfig = {
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           {
             key: "Permissions-Policy",
-            value: "camera=(), microphone=(), geolocation=()",
+            // Permissions-Policy belongs to the top-level document. Same-origin camera
+            // must remain allowed when Next navigates from a dashboard to scanner.
+            value: "camera=(self), microphone=(), geolocation=()",
           },
           ...(process.env.SITE_INDEXABLE !== "true"
             ? [{ key: "X-Robots-Tag", value: "noindex, nofollow" }]
             : []),
+        ],
+      },
+      {
+        source: "/dashboard/scanner",
+        headers: [
+          { key: "Permissions-Policy", value: "camera=(self), microphone=(), geolocation=()" },
+          { key: "Cache-Control", value: "no-store" },
+          { key: "Referrer-Policy", value: "no-referrer" },
         ],
       },
       {
