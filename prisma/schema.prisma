@@ -504,10 +504,12 @@ model Guest {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   event Event @relation(fields:[eventId], references:[id], onDelete:Cascade)
+  entryPasses GuestPass[]
   rsvps Rsvp[]
   contributors EventContributor[]
   messageRecipients MessageRecipient[]
   messageConsents MessageConsent[]
+  @@unique([id,eventId])
   @@index([eventId, name])
   @@index([eventId, invitationStatus])
 }
@@ -824,6 +826,10 @@ model EventStaff {
   @@unique([eventId,userId])
 }
 model GuestPass {
+  guestId String?
+  guestSlot Int?
+  tokenEnvelope String? @db.Text
+  guest Guest? @relation(fields:[guestId,eventId], references:[id,eventId], onDelete:Restrict)
   id String @id @default(cuid())
   eventId String
   purchaseId String
@@ -840,6 +846,8 @@ model GuestPass {
   event Event @relation(fields:[eventId], references:[id], onDelete:Cascade)
   purchase GuestPassPurchase @relation(fields:[purchaseId], references:[id], onDelete:Cascade)
   checkIns CheckIn[]
+  @@unique([guestId,guestSlot])
+  @@index([eventId,guestId])
   @@index([eventId,status])
   @@index([purchaseId])
 }

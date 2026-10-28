@@ -13,8 +13,9 @@ export function scanFeedback(result: ScanResult) {
   const messages:Record<string,[string,string]> = {
     ALREADY_USED:["Already checked in","This pass has already been used. No additional entry was recorded."],
     WRONG_EVENT:["Wrong event","This entry pass belongs to another event. No check-in was recorded."],
-    INVITATION_QR:["Invitation QR, not an entry pass","Ask for the entry-pass QR issued from Guest Pass Management. Invitation links cannot admit guests."],
+    INVITATION_QR:["Invitation QR, not an entry pass","This is an invitation link, not an entry pass. Ask the guest to open their invitation and select My Entry Pass."],
     INVALID:["Invalid entry QR","Use a valid entry-pass QR. No check-in was recorded."],
+    NOT_ELIGIBLE:["Entry not available","The guest’s RSVP or entry entitlement no longer allows this pass. Ask the organizer for help."],
     REVOKED:["Pass revoked","This entry pass has been revoked. No check-in was recorded."],
     UNAUTHORIZED:["Access denied","You no longer have permission to check in guests for this event."],
     UNAVAILABLE:["Verification unavailable","Check your connection. Entry is not approved. A timed-out request may have completed; rescan to confirm its status."],

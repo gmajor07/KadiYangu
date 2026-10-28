@@ -1,4 +1,7 @@
 import "server-only";
+import { boundEntryAllowed } from "@/lib/guest-entry-policy";
+import { sealEntryToken,passRetrievalConfigured } from "@/lib/entry-pass-crypto";
+import { allocateGuestEntryPasses,guestPassInclude } from "@/services/guest-entry-passes";
 import { scannerEventAccess } from "@/services/scanner";
 import { isEntryPassToken } from "@/lib/scanner/contracts";
 import { createHash, randomBytes } from "node:crypto";
@@ -16,10 +19,12 @@ export async function issueGuestPasses(userId: string, eventId: string, quantity
   return db.$transaction(async (tx) => {
     const event = await tx.event.findUnique({ where: { id: eventId }, select: { id: true } });
     if (!event) return null;
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`pass-purchase:${purchaseId}`},0))`;
     const purchase = await tx.guestPassPurchase.findFirst({ where: { id: purchaseId, eventId, status: "ISSUED" }, select: { id: true, quantityPurchased: true, quantityIssued: true, quantityRemaining: true } });
     if (!purchase || quantity > purchase.quantityRemaining) return null;
     const rows = Array.from({ length: quantity }, () => { const raw = token(); return { eventId, purchaseId, tokenHash: hash(raw), raw }; });
-    await tx.guestPassPurchase.update({ where: { id: purchase.id }, data: { quantityIssued: { increment: quantity }, quantityRemaining: { decrement: quantity } } });
+    const claimed=await tx.guestPassPurchase.updateMany({ where: { id: purchase.id,quantityRemaining:{gte:quantity},quantityIssued:{lte:purchase.quantityPurchased-quantity} }, data: { quantityIssued: { increment: quantity }, quantityRemaining: { decrement: quantity } } });
+    if(!claimed.count)return null;
     await tx.guestPass.createMany({ data: rows.map(({ eventId, purchaseId, tokenHash }) => ({ eventId, purchaseId, tokenHash })) });
     return rows.map(({ raw, ...r }) => ({ ...r, token: raw }));
   });
@@ -73,7 +78,8 @@ export async function checkInGuestPass(userId: string, eventId: string, rawToken
     const allowed = await tx.event.findFirst({ where: { AND: [{ id: eventId }, scannerEventAccess(userId)] }, select: { id: true } });
     if (!allowed) return { ok: false as const, reason: "UNAUTHORIZED" };
     // Use the same advisory lock key as replacement to make the race deterministic.
-    const candidate = await tx.guestPass.findUnique({ where: { tokenHash: hash(rawToken) }, select: { id: true } });
+    const candidate = await tx.guestPass.findUnique({ where: { tokenHash: hash(rawToken) }, select: { id: true,guestId:true } });
+    if(candidate?.guestId)await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`guest-entry:${candidate.guestId}`},0))`;
     if (candidate) await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${candidate.id}, 0))`;
     const pass = await tx.guestPass.findUnique({ where: { tokenHash: hash(rawToken) } });
     if (!pass) return { ok: false as const, reason: "INVALID" };
@@ -81,6 +87,12 @@ export async function checkInGuestPass(userId: string, eventId: string, rawToken
     const entry = { guestName: pass.guestName, allowedEntries: 1 as const, checkedIn: 1 as const, remaining: 0 as const };
     if (pass.status === "REVOKED") return { ok: false as const, reason: "REVOKED" };
     if (pass.status === "CHECKED_IN") return { ok: false as const, reason: "ALREADY_USED", entry };
+    if(pass.guestId){
+      if(candidate?.guestId!==pass.guestId)return {ok:false as const,reason:"UNAVAILABLE"};
+      const guest=await tx.guest.findFirst({where:{id:pass.guestId,eventId},include:{...guestPassInclude,event:{select:{status:true}}}});
+      const backing=await tx.guestPassPurchase.findFirst({where:{id:pass.purchaseId,eventId,status:{in:["ISSUED","BETA_ISSUED"]}},select:{id:true}});
+      if(!backing || !boundEntryAllowed(guest,guest?.event.status==="PUBLISHED",pass.guestSlot))return {ok:false as const,reason:"NOT_ELIGIBLE"};
+    }
     const updated = await tx.guestPass.updateMany({ where: { id: pass.id, status: "ACTIVE" }, data: { status: "CHECKED_IN", checkedInAt: new Date() } });
     if (!updated.count) return { ok: false as const, reason: "ALREADY_USED" };
     await tx.checkIn.create({ data: { passId: pass.id, eventId, scannerUserId: userId, result: "APPROVED" } });
@@ -94,14 +106,10 @@ export async function revokeGuestPass(userId: string, passId: string) {
   if (!pass || !await canManageEvent(userId, pass.eventId, ["OWNER", "ADMIN", "MANAGER", "EDITOR"])) return { count: 0 };
   return db.guestPass.updateMany({ where: { id: passId, status: "ACTIVE" }, data: { status: "REVOKED", revokedAt: new Date() } });
 }
-export async function assignGuestPass(userId: string, passId: string, guestId: string) {
-  const db = getDb();
-  const pass = await db.guestPass.findUnique({ where: { id: passId }, select: { id: true, eventId: true, status: true, guestName: true } });
-  if (!pass || pass.status !== "ACTIVE" || pass.guestName || !await canManageEvent(userId, pass.eventId, ["OWNER", "ADMIN", "MANAGER", "EDITOR"])) return false;
-  const guest = await db.guest.findFirst({ where: { id: guestId, eventId: pass.eventId }, select: { name: true, email: true, phone: true } });
-  if (!guest) return false;
-  const updated = await db.guestPass.updateMany({ where: { id: pass.id, status: "ACTIVE", guestName: null }, data: { guestName: guest.name, guestEmail: guest.email, guestPhone: guest.phone } });
-  return updated.count === 1;
+export async function assignGuestPass(userId:string,passId:string,guestId:string){
+ const pass=await getDb().guestPass.findUnique({where:{id:passId},select:{eventId:true}});
+ if(!pass)return false;
+ return (await allocateGuestEntryPasses(userId,pass.eventId,guestId,1,passId)).ok;
 }
 
 export async function replaceGuestPassToken(userId: string, passId: string, expectedRevision = 0) {
@@ -114,7 +122,10 @@ export async function replaceGuestPassToken(userId: string, passId: string, expe
     const pass = await tx.guestPass.findFirst({ where: { id: passId, status: "ACTIVE", checkedInAt: null, replacementRevision: expectedRevision }, select: { id: true, eventId: true, purchaseId: true, tokenHash: true, replacementRevision: true } });
     if (!pass) return null;
     const raw = token();
-    const updated = await tx.guestPass.updateMany({ where: { id: pass.id, status: "ACTIVE", checkedInAt: null, tokenHash: pass.tokenHash, replacementRevision: expectedRevision }, data: { tokenHash: hash(raw), replacementRevision: { increment: 1 } } });
+    const linked=await tx.guestPass.findUnique({where:{id:pass.id},select:{guestId:true}});
+    if(linked?.guestId && !passRetrievalConfigured())return null;
+    const tokenEnvelope=passRetrievalConfigured()?sealEntryToken(raw,{...pass,replacementRevision:expectedRevision+1}):null;
+    const updated = await tx.guestPass.updateMany({ where: { id: pass.id, status: "ACTIVE", checkedInAt: null, tokenHash: pass.tokenHash, replacementRevision: expectedRevision }, data: { tokenHash: hash(raw), tokenEnvelope, replacementRevision: { increment: 1 } } });
     if (!updated.count) return null;
     await tx.auditLog.create({ data: { action: "GUEST_PASS_TOKEN_REPLACED", entityType: "GuestPass", entityId: pass.id, afterData: { eventId: pass.eventId, purchaseId: pass.purchaseId } } });
     return { passId: pass.id, token: raw, revision: expectedRevision + 1 };

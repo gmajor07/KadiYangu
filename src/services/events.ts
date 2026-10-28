@@ -20,7 +20,7 @@ export async function canManageEvent(userId:string,eventId:string,roles:string[]
   return Boolean(await requireOrganizationMember(userId,event.organizationId,roles));
 }
 export function getPublicEvent(slug:string){return getDb().event.findFirst({where:{slug,status:"PUBLISHED"},include:{design:true,website:true,schedule:{orderBy:{sortOrder:"asc"}},gallery:{orderBy:{sortOrder:"asc"}}}});}
-export async function createRsvp(eventId:string,input:{guestName:string;phone?:string;email?:string;status:"ATTENDING"|"NOT_ATTENDING";guestCount:number;message?:string}){const event=await getDb().event.findFirst({where:{id:eventId,status:"PUBLISHED"},select:{id:true}});if(!event) return null;const where=input.email?{eventId,email:input.email}:{eventId,phone:input.phone||undefined};const prior=await getDb().rsvp.findFirst({where});if(prior)return getDb().rsvp.update({where:{id:prior.id},data:input});return getDb().rsvp.create({data:{eventId,...input}});}
+export async function createRsvp(eventId:string,input:{guestName:string;phone?:string;email?:string;status:"ATTENDING"|"NOT_ATTENDING";guestCount:number;message?:string}){const event=await getDb().event.findFirst({where:{id:eventId,status:"PUBLISHED"},select:{id:true}});if(!event) return null;const where=input.email?{eventId,guestId:null,email:input.email}:input.phone?{eventId,guestId:null,phone:input.phone}:null;const prior=where?await getDb().rsvp.findFirst({where}):null;if(prior)return getDb().rsvp.update({where:{id:prior.id},data:input});return getDb().rsvp.create({data:{eventId,...input}});}
 /** Associates an existing RSVP with a Guest only when both belong to the same Event. */
 export async function associateRsvpWithGuest(eventId:string,rsvpId:string,guestId:string){
   const db=getDb();
@@ -34,13 +34,22 @@ export async function associateRsvpWithGuest(eventId:string,rsvpId:string,guestI
 export { Prisma };
 export function expectedGuestCount(responses:Array<{status:string;guestCount:number}>){return responses.filter(r=>r.status==="ATTENDING").reduce((sum,r)=>sum+Math.max(0,r.guestCount),0)}
 export async function getOwnerPreviewEvent(eventId:string,userId:string){if(!await canManageEvent(userId,eventId,["OWNER","ADMIN","MANAGER","EDITOR","SCANNER","BILLING"]))return null;return getDb().event.findFirst({where:{id:eventId},include:{design:true,website:true,schedule:{orderBy:{sortOrder:"asc"}},gallery:{orderBy:{sortOrder:"asc"}}}})}
-export function getPersonalizedEvent(slug:string, invitationCode:string){return getDb().event.findFirst({where:{slug,status:"PUBLISHED",guests:{some:{invitationCode}}},include:{design:true,website:true,schedule:{orderBy:{sortOrder:"asc"}},gallery:{orderBy:{sortOrder:"asc"}},guests:{where:{invitationCode},select:{name:true,maxGuests:true,rsvps:{select:{status:true,guestCount:true}}}}}})}
+export function getPersonalizedEvent(slug:string, invitationCode:string){return getDb().event.findFirst({where:{slug,status:"PUBLISHED",guests:{some:{invitationCode}}},include:{design:true,website:true,schedule:{orderBy:{sortOrder:"asc"}},gallery:{orderBy:{sortOrder:"asc"}},guests:{where:{invitationCode},select:{id:true,name:true,maxGuests:true,plusOneAllowed:true,rsvps:{orderBy:{updatedAt:"desc"},select:{status:true,guestCount:true}}}}}})}
 export async function createPersonalizedRsvp(slug:string, invitationCode:string, input:{status:"ATTENDING"|"NOT_ATTENDING";guestCount:number}){
-  const db=getDb();
-  const event=await db.event.findFirst({where:{slug,status:"PUBLISHED",guests:{some:{invitationCode}}},include:{guests:{where:{invitationCode},select:{id:true,name:true,phone:true,email:true,maxGuests:true,plusOneAllowed:true}}}});
-  const guest=event?.guests[0];
-  if(!event||!guest||!Number.isInteger(input.guestCount)||input.guestCount<1||input.guestCount>guest.maxGuests)return null;
-  const data={guestName:guest.name,phone:guest.phone,email:guest.email,status:input.status,guestCount:input.guestCount,guestId:guest.id};
-  const prior=await db.rsvp.findFirst({where:{eventId:event.id,guestId:guest.id},select:{id:true}});
-  return prior?db.rsvp.update({where:{id:prior.id},data}):db.rsvp.create({data:{eventId:event.id,...data}});
+ if(!["ATTENDING","NOT_ATTENDING"].includes(input.status)||!Number.isInteger(input.guestCount)||input.guestCount<1)return null;
+ const db=getDb();
+ return db.$transaction(async tx=>{
+  const identity=await tx.guest.findFirst({where:{invitationCode,event:{slug,status:"PUBLISHED"}},select:{id:true}});
+  if(!identity)return null;
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`guest-entry:${identity.id}`},0))`;
+  const guest=await tx.guest.findFirst({where:{id:identity.id,invitationCode,event:{slug,status:"PUBLISHED"}}});
+  if(!guest)return null;
+  const max=guest.plusOneAllowed?guest.maxGuests:Math.min(1,guest.maxGuests);
+  if(input.guestCount>max)return null;
+  const used=await tx.guestPass.aggregate({where:{guestId:guest.id,status:"CHECKED_IN"},_max:{guestSlot:true}});
+  const newLimit=input.status==="ATTENDING"?input.guestCount:0;
+  if((used._max.guestSlot || 0)>newLimit)return null;
+  const data={guestName:guest.name.slice(0,120),phone:guest.phone,email:guest.email,status:input.status,guestCount:input.guestCount,guestId:guest.id};
+  return tx.rsvp.upsert({where:{eventId_guestId:{eventId:guest.eventId,guestId:guest.id}},update:data,create:{eventId:guest.eventId,...data}});
+ });
 }
